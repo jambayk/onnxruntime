@@ -14,12 +14,9 @@ typedef enum Bnb_DataType_t
   NF4 = 1,
 } Bnb_DataType_t;
 
-Status addOffset(float *out, const float *offset, int n, cudaStream_t stream);
-
 template <class T>
 Status DequantizeBnb4(
     int quant_type,
-    const float* quant_map,
     T* output,
     const unsigned char* quant_data, 
     const float* absmax,

@@ -17,13 +17,6 @@ __global__ void kAddOffset(float *output, const float *offset, int n) {
   }
 }
 
-Status addOffset(float *output, const float *offset, int n, cudaStream_t stream)
-{
-  kAddOffset<<<((n+1024-1)/1024), 1024, 0, stream>>>(output, offset, n);
-  return Status::OK();
-}
-
-
 __device__ float dDequantizeFP4Tree(unsigned char val, float absmax)
 {
   float sign = (val & 0b1000) == 8 ? -1.0f : 1.0f;
@@ -104,7 +97,7 @@ __device__ float dDequantizeNF4(unsigned char val)
 
 
 template<typename T, int TILE_SIZE, int THREADS, int NUM_PER_TH, int DATA_TYPE>
-__global__ void kDequantizeBlockwise(const float *quant_map, T *output, const unsigned char *quant_data, const float *absmax, const int blocksize, const int n)
+__global__ void kDequantizeBlockwise(T *output, const unsigned char *quant_data, const float *absmax, const int blocksize, const int n)
 {
   const int n_load = (gridDim.x * TILE_SIZE);
   int valid_items_load = 0;
@@ -158,7 +151,7 @@ __global__ void kDequantizeBlockwise(const float *quant_map, T *output, const un
 
 
 template<class T>
-Status DequantizeBnb4(int quant_type, const float *quant_map, T *output, const unsigned char *quant_data, const float *absmax, int blocksize, int numel, cudaStream_t stream)
+Status DequantizeBnb4(int quant_type, T *output, const unsigned char *quant_data, const float *absmax, int blocksize, int numel, cudaStream_t stream)
 {
   ORT_ENFORCE(quant_type == FP4 || quant_type == NF4, "Unsupported quantization type");
 
@@ -166,19 +159,19 @@ Status DequantizeBnb4(int quant_type, const float *quant_map, T *output, const u
 
   switch (quant_type) {
     case FP4:
-      kDequantizeBlockwise<T, 512, 64, 8, FP4><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(quant_map, output, quant_data, absmax, blocksize/2, numel);
+      kDequantizeBlockwise<T, 512, 64, 8, FP4><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(output, quant_data, absmax, blocksize/2, numel);
       break;
     case NF4:
-      kDequantizeBlockwise<T, 512, 64, 8, NF4><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(quant_map, output, quant_data, absmax, blocksize/2, numel);
+      kDequantizeBlockwise<T, 512, 64, 8, NF4><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(output, quant_data, absmax, blocksize/2, numel);
       break;
   }
     
   return Status::OK();
 }
 
-template Status DequantizeBnb4<float>(int quant_type, const float *quant_map, float *output, const unsigned char *quant_data, const float *absmax,  int blocksize, int numel, cudaStream_t stream);
+template Status DequantizeBnb4<float>(int quant_type, float *output, const unsigned char *quant_data, const float *absmax,  int blocksize, int numel, cudaStream_t stream);
 
-template Status DequantizeBnb4<half>(int quant_type, const float *quant_map, half *output, const unsigned char *quant_data, const float *absmax,  int blocksize, int numel, cudaStream_t stream);
+template Status DequantizeBnb4<half>(int quant_type, half *output, const unsigned char *quant_data, const float *absmax,  int blocksize, int numel, cudaStream_t stream);
 
 }  // namespace cuda
 }  // namespace contrib
