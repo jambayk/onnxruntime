@@ -42,7 +42,7 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
 
   const auto* a_data = a->Data<T>();
   const uint8_t* b_quant_data = b_quant->Data<uint8_t>();
-  const auto* quant_map_data = quant_map->Data<T>();
+  const float* quant_map_data = quant_map->Data<float>();
   const float_t* absmax_data = absmax->Data<float_t>();
 
   typedef typename ToCudaType<T>::MappedType CudaT;
@@ -63,7 +63,7 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
       reinterpret_cast<const CudaT*>(a_data),
       b_quant_data,
       absmax_data,
-      reinterpret_cast<const CudaT*>(quant_map_data),
+      quant_map_data,
       SafeInt<int>(helper.M()),
       SafeInt<int>(helper.N()),
       SafeInt<int>(helper.K()),

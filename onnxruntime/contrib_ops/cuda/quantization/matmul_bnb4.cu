@@ -12,7 +12,7 @@ namespace cuda {
 
 #define num_values_4bit 32
 template <typename T, int THREADS, int BITS>
-__global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restrict__ A, const unsigned char *B,  const float *absmax, const T *datatype, T * out,  int lda, int ldb, int ldc, int blocksize)
+__global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restrict__ A, const unsigned char *B,  const float *absmax, const float *datatype, T * out,  int lda, int ldb, int ldc, int blocksize)
 {
 
   // per threadblock:
@@ -35,7 +35,7 @@ __global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restr
 	T local_absmax = T(0.0f);
 
   for(int i = threadIdx.x; i < 16; i++)
-    quant_map[i] = datatype[i];
+    quant_map[i] = T(datatype[i]);
   __syncthreads();
 
   // A: [1, K]
@@ -137,7 +137,7 @@ bool TryMatMulBnb4(
     const T* a_data,
     const unsigned char* b_data_quant,
     const float* absmax,
-    const T* quant_map,
+    const float* quant_map,
     int m,
     int n,
     int k,
@@ -175,7 +175,7 @@ template bool TryMatMulBnb4<half>(
     const half* a_data,
     const unsigned char* b_data_quant,
     const float* absmax,
-    const half* quant_map,
+    const float* quant_map,
     int m,
     int n,
     int k,

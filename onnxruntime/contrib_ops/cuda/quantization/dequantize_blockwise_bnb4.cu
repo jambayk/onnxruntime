@@ -10,12 +10,6 @@ namespace onnxruntime {
 namespace contrib {
 namespace cuda {
 
-__global__ void kAddOffset(float *output, const float *offset, int n) {
-  int idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (idx < n) {
-    output[idx] += *offset;
-  }
-}
 
 __device__ float dDequantizeFP4Tree(unsigned char val, float absmax)
 {
