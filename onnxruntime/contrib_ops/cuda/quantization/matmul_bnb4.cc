@@ -21,11 +21,7 @@ class MatMulBnb4 final : public CudaKernel {
     ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("N", &N_));
     ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("blocksize", &blocksize_));
     ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("quant_type", &quant_type_));
-    ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("double_quant", &double_quant_));
-    ORT_ENFORCE(quant_type_ == FP4 || quant_type_ == NF4, "Invalid quant_type, only 1 (FP4) and 2 (NF4) are supported.");
-    if (double_quant_) {
-      ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("nested_blocksize", &nested_blocksize_));
-    }
+    ORT_ENFORCE(quant_type_ == FP4 || quant_type_ == NF4, "Invalid quant_type, only 0 (FP4) and 1 (NF4) are supported.");
   }
 
   Status ComputeInternal(OpKernelContext* context) const override;
@@ -35,8 +31,6 @@ class MatMulBnb4 final : public CudaKernel {
   int64_t N_;
   int64_t blocksize_;
   int64_t quant_type_;
-  int64_t double_quant_;
-  int64_t nested_blocksize_;
 };
 
 template <typename T>
@@ -49,39 +43,7 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
   const auto* a_data = a->Data<T>();
   const uint8_t* b_quant_data = b_quant->Data<uint8_t>();
   const float* quant_map_data = quant_map->Data<float>();
-
-  const float_t* absmax_data;
-  if (double_quant_) {
-    // dequantize absmax
-    const Tensor* offset = ctx->Input<Tensor>(4);
-    const Tensor* nested_absmax = ctx->Input<Tensor>(5);
-    const Tensor* nested_quant_map = ctx->Input<Tensor>(6);
-
-    int64_t absmax_size = absmax->Shape().Size();
-    IAllocatorUniquePtr<float_t> absmax_data_ptr = GetScratchBuffer<float_t>(SafeInt<size_t>(absmax_size), ctx->GetComputeStream());
-    float_t* absmax_scratch = absmax_data_ptr.get();
-
-    ORT_RETURN_IF_ERROR(DequantizeBnb4<float_t>(
-        General8bit,
-        nested_quant_map->Data<float_t>(),
-        absmax_scratch,
-        absmax->Data<uint8_t>(),
-        nested_absmax->Data<float_t>(),
-        SafeInt<int>(nested_blocksize_),
-        SafeInt<int>(absmax_size),
-        static_cast<cudaStream_t>(ctx->GetComputeStream()->GetHandle())));
-
-    // add offset
-    ORT_RETURN_IF_ERROR(addOffset(
-        absmax_scratch,
-        offset->Data<float_t>(),
-        SafeInt<int>(absmax_size),
-        static_cast<cudaStream_t>(ctx->GetComputeStream()->GetHandle())));
-
-    absmax_data = absmax_scratch;
-  } else {
-    absmax_data = absmax->Data<float_t>();
-  }
+  const float_t* absmax_data = absmax->Data<float_t>();
 
   typedef typename ToCudaType<T>::MappedType CudaT;
 

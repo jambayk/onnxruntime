@@ -111,28 +111,21 @@ __global__ void kDequantizeBlockwise(const float *quant_map, T *output, const un
   int valid_items_store = 0;
   const int base_idx = (blockIdx.x * TILE_SIZE);
 
-  T vals[NUM_PER_TH*((DATA_TYPE > 0) ? 2 : 1)];
+  T vals[NUM_PER_TH*2];
   unsigned char qvals[NUM_PER_TH];
   float local_abs_max = -FLT_MAX;
 
   typedef cub::BlockLoad<unsigned char, THREADS, NUM_PER_TH, cub::BLOCK_LOAD_WARP_TRANSPOSE> LoadChar;
-  typedef cub::BlockStore<T, THREADS, NUM_PER_TH*((DATA_TYPE > 0) ? 2 : 1), cub::BLOCK_STORE_WARP_TRANSPOSE> StoreT;
+  typedef cub::BlockStore<T, THREADS, NUM_PER_TH*2, cub::BLOCK_STORE_WARP_TRANSPOSE> StoreT;
 
   __shared__ typename LoadChar::TempStorage loadchar;
   __shared__ typename StoreT::TempStorage storet;
 
   for (unsigned int i = base_idx; i < n_load; i += gridDim.x*TILE_SIZE)
   {
-    if(DATA_TYPE > 0)
-    {
-      valid_items_load = (n+1)/2 - i > TILE_SIZE ? TILE_SIZE : (n+1)/2 - i;
-      valid_items_store = n - i*2 > TILE_SIZE*2 ? TILE_SIZE*2 : n - i*2;
-    }
-    else
-    {
-      valid_items_load = n - i > TILE_SIZE ? TILE_SIZE : n - i;
-      valid_items_store = n - i > TILE_SIZE ? TILE_SIZE : n - i;
-    }
+    valid_items_load = (n+1)/2 - i > TILE_SIZE ? TILE_SIZE : (n+1)/2 - i;
+    valid_items_store = n - i*2 > TILE_SIZE*2 ? TILE_SIZE*2 : n - i*2;
+
     local_abs_max = __ldg(&absmax[(i+threadIdx.x*NUM_PER_TH)/(blocksize)]);
 
     __syncthreads();
@@ -140,12 +133,6 @@ __global__ void kDequantizeBlockwise(const float *quant_map, T *output, const un
 
     switch(DATA_TYPE)
     {
-      case General8bit:
-        // load quant_map through read-only cache via __ldg
-        #pragma unroll NUM_PER_TH
-        for(int j = 0; j < NUM_PER_TH; j++)
-          vals[j] = __ldg(&quant_map[qvals[j]])*local_abs_max;
-        break;
       case FP4:
         #pragma unroll NUM_PER_TH
         for(int j = 0; j < NUM_PER_TH; j++)
@@ -165,7 +152,7 @@ __global__ void kDequantizeBlockwise(const float *quant_map, T *output, const un
     }
 
     __syncthreads();
-    StoreT(storet).Store(&(output[(DATA_TYPE > 0) ? i*2 : i]), vals, valid_items_store);
+    StoreT(storet).Store(&(output[i*2]), vals, valid_items_store);
   }
 }
 
@@ -173,14 +160,11 @@ __global__ void kDequantizeBlockwise(const float *quant_map, T *output, const un
 template<class T>
 Status DequantizeBnb4(int quant_type, const float *quant_map, T *output, const unsigned char *quant_data, const float *absmax, int blocksize, int numel, cudaStream_t stream)
 {
-  ORT_ENFORCE(quant_type == General8bit || quant_type == FP4 || quant_type == NF4, "Unsupported quantization type");
+  ORT_ENFORCE(quant_type == FP4 || quant_type == NF4, "Unsupported quantization type");
 
-  int tile_size = (quant_type > 0) ? 1024 : 512;
+  int tile_size = 1024;
 
   switch (quant_type) {
-    case General8bit:
-      kDequantizeBlockwise<T, 512, 64, 8, General8bit><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(quant_map, output, quant_data, absmax, blocksize, numel);
-      break;
     case FP4:
       kDequantizeBlockwise<T, 512, 64, 8, FP4><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(quant_map, output, quant_data, absmax, blocksize/2, numel);
       break;

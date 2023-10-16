@@ -10,9 +10,8 @@ namespace cuda {
 
 typedef enum Bnb_DataType_t
 {
-  General8bit = 0,
-  FP4 = 1,
-  NF4 = 2,
+  FP4 = 0,
+  NF4 = 1,
 } Bnb_DataType_t;
 
 Status addOffset(float *out, const float *offset, int n, cudaStream_t stream);
