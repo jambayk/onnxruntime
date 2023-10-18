@@ -12,7 +12,7 @@ namespace cuda {
 
 #define num_values_4bit 32
 template <typename T, int THREADS, int BITS>
-__global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restrict__ A, const unsigned char *B,  const float *scale, const float *datatype, T * out,  int lda, int ldb, int ldc, int blocksize)
+__global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restrict__ A, const unsigned char *B,  const float *scale, const float *datatype, T * out,  int lda, int ldb, int ldc, int block_size)
 {
 
   // per threadblock:
@@ -44,7 +44,7 @@ __global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restr
   {
     int inner_idx_halved = inner_idx/2;
     int offset_B = ldb*row_B;
-    int absidx = ((2*offset_B)+inner_idx)/blocksize;
+    int absidx = ((2*offset_B)+inner_idx)/block_size;
 	  local_scale = __ldg(&(scale[absidx]));
 
     if(row_B < N)
@@ -141,9 +141,9 @@ bool TryMatMulBnb4(
     int m,
     int n,
     int k,
-    int blocksize,
+    int block_size,
     cudaStream_t stream) {
-  if (k % blocksize != 0 || m > 1) {
+  if (k % block_size != 0 || m > 1) {
     return false;
   }
 
@@ -153,7 +153,7 @@ bool TryMatMulBnb4(
   int num_blocks = (n + 3) / 4;
 
   constexpr int bits = ::cuda::std::is_same_v<T, half> ? 16 : 32;
-  kgemm_4bit_inference_naive<T, 128, bits><<<num_blocks, 128, 0, stream>>>(m, n, k, a_data, b_data_quant, scale, quant_map, output, lda, ldb, ldc, blocksize);
+  kgemm_4bit_inference_naive<T, 128, bits><<<num_blocks, 128, 0, stream>>>(m, n, k, a_data, b_data_quant, scale, quant_map, output, lda, ldb, ldc, block_size);
 
   return true;
 }

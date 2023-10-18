@@ -80,12 +80,12 @@ class MatrixFpBnb4Metric(MatrixMulMetric):
 
 def profile_matmul_fp_bnb4_func(quant_type, m, n, k, dtype, func):
     np.random.seed(0)
-    blocksize = 64
+    block_size = 64
     numel = n * k
     output = np.random.rand(m, n).astype(dtype)
     a = np.random.rand(m, k).astype(dtype)
     b = np.random.randint(low=0, high=255, size=(numel + 1) // 2).astype("uint8")
-    scale = np.random.rand((numel + blocksize - 1) // blocksize).astype("float32")
+    scale = np.random.rand((numel + block_size - 1) // block_size).astype("float32")
     quant_map = np.array(quant_maps[quant_type]).astype("float32")
     quant_map /= np.max(np.abs(quant_map))
 

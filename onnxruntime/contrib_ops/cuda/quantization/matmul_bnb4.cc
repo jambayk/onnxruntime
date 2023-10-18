@@ -19,7 +19,7 @@ class MatMulBnb4 final : public CudaKernel {
   MatMulBnb4(const OpKernelInfo& info) : CudaKernel(info) {
     ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("K", &K_));
     ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("N", &N_));
-    ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("blocksize", &blocksize_));
+    ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("block_size", &block_size_));
     ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("quant_type", &quant_type_));
     ORT_ENFORCE(quant_type_ == FP4 || quant_type_ == NF4, "Invalid quant_type, only 0 (FP4) and 1 (NF4) are supported.");
   }
@@ -29,7 +29,7 @@ class MatMulBnb4 final : public CudaKernel {
  private:
   int64_t K_;
   int64_t N_;
-  int64_t blocksize_;
+  int64_t block_size_;
   int64_t quant_type_;
 };
 
@@ -67,7 +67,7 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
       SafeInt<int>(helper.M()),
       SafeInt<int>(helper.N()),
       SafeInt<int>(helper.K()),
-      SafeInt<int>(blocksize_),
+      SafeInt<int>(block_size_),
       static_cast<cudaStream_t>(ctx->GetComputeStream()->GetHandle()));
 
   if (!is_4bit_done) {
@@ -78,7 +78,7 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
         reinterpret_cast<CudaT*>(b_dequant_data),
         b_quant_data,
         scale_data,
-        SafeInt<int>(blocksize_),
+        SafeInt<int>(block_size_),
         SafeInt<int>(N_ * K_),
         static_cast<cudaStream_t>(ctx->GetComputeStream()->GetHandle())));
 

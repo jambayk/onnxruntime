@@ -41,11 +41,11 @@ class DequantizeBnb4Metric(ke.BandwidthMetric):
 
 def profile_dequantize_int4_func(qt, n, k, dtype, func):
     np.random.seed(0)
-    blocksize = 64
+    block_size = 64
     numel = n * k
     output = np.random.rand(n, k).astype(dtype)
     quant = np.random.randint(low=0, high=255, size=(numel + 1) // 2).astype("uint8")
-    scale = np.random.rand((numel + blocksize - 1) // blocksize).astype("float32")
+    scale = np.random.rand((numel + block_size - 1) // block_size).astype("float32")
 
     output_d = ke.DeviceArray(output)
     quant_d = ke.DeviceArray(quant)
@@ -53,7 +53,7 @@ def profile_dequantize_int4_func(qt, n, k, dtype, func):
     f = getattr(ke, func)
     my_op = f(quant_enums[qt], output_d, quant_d, scale_d, n, k)
     duration_ms = my_op.Profile()
-    total_bytes = numel / 2 + numel * dtype_to_bytes(dtype) + numel / blocksize * dtype_to_bytes("float32")
+    total_bytes = numel / 2 + numel * dtype_to_bytes(dtype) + numel / block_size * dtype_to_bytes("float32")
 
     ke.report(DequantizeBnb4Metric(func, dtype, duration_ms, total_bytes, qt, n, k))
 

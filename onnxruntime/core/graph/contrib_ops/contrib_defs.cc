@@ -3249,7 +3249,7 @@ Missing Doc
       .SetDoc(MatMulBnb4_ver1_doc)
       .Attr("K", "Size of each input feature.", AttributeProto::INT)
       .Attr("N", "Size of each output feature.", AttributeProto::INT)
-      .Attr("blocksize", "Number of groupsize used for weight quantization.", AttributeProto::INT)
+      .Attr("block_size", "Number of groupsize used for weight quantization.", AttributeProto::INT)
       .Attr("quant_type", "Type of quantization used. 0 for FP4, 1 for NF4.", AttributeProto::INT)
       .Input(0, "A", "The input tensor, not quantized.", "T1")
       .Input(1, "B", "Quantized data for weight.", "T2")
