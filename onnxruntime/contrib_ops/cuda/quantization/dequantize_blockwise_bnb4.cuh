@@ -19,7 +19,7 @@ Status DequantizeBnb4(
     int quant_type,
     T* output,
     const unsigned char* quant_data, 
-    const float* absmax,
+    const float* scale,
     int block_size,
     int numel,
     cudaStream_t stream);

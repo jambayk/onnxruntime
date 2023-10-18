@@ -37,13 +37,13 @@ template <typename T>
 Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
   const Tensor* a = ctx->Input<Tensor>(0);
   const Tensor* b_quant = ctx->Input<Tensor>(1);
-  const Tensor* absmax = ctx->Input<Tensor>(2);
+  const Tensor* scale = ctx->Input<Tensor>(2);
   const Tensor* quant_map = ctx->Input<Tensor>(3);
 
   const auto* a_data = a->Data<T>();
   const uint8_t* b_quant_data = b_quant->Data<uint8_t>();
   const float* quant_map_data = quant_map->Data<float>();
-  const float_t* absmax_data = absmax->Data<float_t>();
+  const float_t* scale_data = scale->Data<float_t>();
 
   typedef typename ToCudaType<T>::MappedType CudaT;
 
@@ -62,7 +62,7 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
       reinterpret_cast<CudaT*>(Y->MutableData<T>()),
       reinterpret_cast<const CudaT*>(a_data),
       b_quant_data,
-      absmax_data,
+      scale_data,
       quant_map_data,
       SafeInt<int>(helper.M()),
       SafeInt<int>(helper.N()),
@@ -77,7 +77,7 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
         SafeInt<int>(quant_type_),
         reinterpret_cast<CudaT*>(b_dequant_data),
         b_quant_data,
-        absmax_data,
+        scale_data,
         SafeInt<int>(blocksize_),
         SafeInt<int>(N_ * K_),
         static_cast<cudaStream_t>(ctx->GetComputeStream()->GetHandle())));

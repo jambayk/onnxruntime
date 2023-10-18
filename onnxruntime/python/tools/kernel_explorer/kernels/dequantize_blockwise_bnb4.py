@@ -33,7 +33,10 @@ class DequantizeBnb4Metric(ke.BandwidthMetric):
     k: int
 
     def report(self):
-        return f"{self.duration:6.2f} us {self.gbps:5.2f} GB/s {self.quant_type} {self.dtype} n={self.n} k={self.k} {self.name}"
+        return (
+            f"{self.duration:6.2f} us {self.gbps:5.2f} GB/s"
+            f" {self.quant_type} {self.dtype} n={self.n} k={self.k} {self.name}"
+        )
 
 
 def profile_dequantize_int4_func(qt, n, k, dtype, func):
@@ -42,13 +45,13 @@ def profile_dequantize_int4_func(qt, n, k, dtype, func):
     numel = n * k
     output = np.random.rand(n, k).astype(dtype)
     quant = np.random.randint(low=0, high=255, size=(numel + 1) // 2).astype("uint8")
-    absmax = np.random.rand((numel + blocksize - 1) // blocksize).astype("float32")
+    scale = np.random.rand((numel + blocksize - 1) // blocksize).astype("float32")
 
     output_d = ke.DeviceArray(output)
     quant_d = ke.DeviceArray(quant)
-    absmax_d = ke.DeviceArray(absmax)
+    scale_d = ke.DeviceArray(scale)
     f = getattr(ke, func)
-    my_op = f(quant_enums[qt], output_d, quant_d, absmax_d, n, k)
+    my_op = f(quant_enums[qt], output_d, quant_d, scale_d, n, k)
     duration_ms = my_op.Profile()
     total_bytes = numel / 2 + numel * dtype_to_bytes(dtype) + numel / blocksize * dtype_to_bytes("float32")
 
