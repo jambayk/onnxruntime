@@ -21,7 +21,7 @@ static float nf4_qaunt_map[16] = {
 
 
 template<class T>
-Status SetQuantMap(int quant_type, T* quant_map_buffer, cudaStream_t stream)
+Status SetBnbQuantMap(int quant_type, T* quant_map_buffer, cudaStream_t stream)
 {
   ORT_ENFORCE(quant_type == FP4 || quant_type == NF4, "Unsupported quantization type");
   
@@ -41,9 +41,9 @@ Status SetQuantMap(int quant_type, T* quant_map_buffer, cudaStream_t stream)
   return Status::OK();
 }
 
-template Status SetQuantMap<float>(int quant_type, float* quant_map_buffer, cudaStream_t stream);
+template Status SetBnbQuantMap<float>(int quant_type, float* quant_map_buffer, cudaStream_t stream);
 
-template Status SetQuantMap<half>(int quant_type, half* quant_map_buffer, cudaStream_t stream);
+template Status SetBnbQuantMap<half>(int quant_type, half* quant_map_buffer, cudaStream_t stream);
 
 
 template<typename T, int TILE_SIZE, int THREADS, int NUM_PER_TH>

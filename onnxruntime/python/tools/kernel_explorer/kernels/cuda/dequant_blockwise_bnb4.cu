@@ -49,7 +49,7 @@ class DequantizeBnb4 : public IKernelExplorer {
   }
 
   void Run() override {
-    ORT_THROW_IF_ERROR(contrib::cuda::SetQuantMap(
+    ORT_THROW_IF_ERROR(contrib::cuda::SetBnbQuantMap(
         params_.quant_type_,
         params_.quant_map_buffer_,
         params_.StreamHandle()));

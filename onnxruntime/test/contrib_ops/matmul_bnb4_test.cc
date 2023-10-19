@@ -25,17 +25,17 @@
 namespace onnxruntime {
 namespace test {
 
-void QuantizeDequantizeBnb4(std::vector<float>& raw_vals, // N X K
-                        std::vector<uint8_t>& quant_vals,
-                        std::vector<float>& absmax,
-                        int32_t quant_type,
-                        int32_t N,
-                        int32_t K,
-                        int32_t block_size) {
+void QuantizeDequantizeBnb4(std::vector<float>& raw_vals,  // N X K
+                            std::vector<uint8_t>& quant_vals,
+                            std::vector<float>& absmax,
+                            int32_t quant_type,
+                            int32_t N,
+                            int32_t K,
+                            int32_t block_size) {
   OrtThreadPoolParams to;
   auto tp = concurrency::CreateThreadPool(&onnxruntime::Env::Default(), to,
                                           concurrency::ThreadPoolType::INTRA_OP);
-                                          
+
   contrib::QuantizeBlockwiseBnb4<float>(
       quant_vals.data(),
       raw_vals.data(),
@@ -68,12 +68,12 @@ void RunTest(int64_t quant_type, int64_t M, int64_t N, int64_t K, int64_t block_
   std::vector<float> absmax(total_block_count);
 
   QuantizeDequantizeBnb4(input1_f_vals,
-                     input1_vals,
-                     absmax,
-                     quant_type,
-                     static_cast<int32_t>(N),
-                     static_cast<int32_t>(K),
-                     static_cast<int32_t>(block_size));
+                         input1_vals,
+                         absmax,
+                         quant_type,
+                         static_cast<int32_t>(N),
+                         static_cast<int32_t>(K),
+                         static_cast<int32_t>(block_size));
 
   std::vector<float> expected_vals(M * N);
   for (int64_t m = 0; m < M; m++) {

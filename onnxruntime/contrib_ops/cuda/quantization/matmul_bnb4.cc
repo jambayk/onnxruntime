@@ -50,7 +50,7 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
   // can create a __device__ static array for float but doesn't work for half
   IAllocatorUniquePtr<T> quant_map_buffer = GetScratchBuffer<T>(16, ctx->GetComputeStream());
   auto* quant_map_buffer_data = quant_map_buffer.get();
-  ORT_RETURN_IF_ERROR(SetQuantMap<CudaT>(
+  ORT_RETURN_IF_ERROR(SetBnbQuantMap<CudaT>(
       SafeInt<int>(quant_type_),
       reinterpret_cast<CudaT*>(quant_map_buffer_data),
       static_cast<cudaStream_t>(ctx->GetComputeStream()->GetHandle())));
@@ -71,7 +71,7 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
       reinterpret_cast<CudaT*>(Y->MutableData<T>()),
       reinterpret_cast<const CudaT*>(a_data),
       b_quant_data,
-    //   reinterpret_cast<const CudaT*>(absmax_data),
+      //   reinterpret_cast<const CudaT*>(absmax_data),
       absmax_data,
       SafeInt<int>(helper.M()),
       SafeInt<int>(helper.N()),

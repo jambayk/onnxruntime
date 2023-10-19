@@ -15,7 +15,7 @@ typedef enum Bnb_DataType_t
 } Bnb_DataType_t;
 
 template <class T>
-Status SetQuantMap(int quant_type, T* quant_map_buffer, cudaStream_t stream);
+Status SetBnbQuantMap(int quant_type, T* quant_map_buffer, cudaStream_t stream);
 
 template <class T>
 Status DequantizeBnb4(

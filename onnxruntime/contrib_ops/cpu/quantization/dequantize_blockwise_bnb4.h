@@ -17,9 +17,9 @@ namespace contrib {
 
 template <typename T, int32_t block_size>
 void QuantizeBlockwiseBnb4(
-    uint8_t* dst,          // shape: [(N * K + 1) / 2] 
-    const T* src,          // shape: [N, K]
-    float* absmax,         // shape: [(N * K + block_size - 1) / block_size]
+    uint8_t* dst,   // shape: [(N * K + 1) / 2]
+    const T* src,   // shape: [N, K]
+    float* absmax,  // shape: [(N * K + block_size - 1) / block_size]
     int32_t N,
     int32_t K,
     onnxruntime::concurrency::ThreadPool* thread_pool) {
@@ -37,14 +37,13 @@ void QuantizeBlockwiseBnb4(
 
 template <typename T>
 void QuantizeBlockwiseBnb4(
-    uint8_t* dst,          // shape: [(N * K + 1) / 2]
-    const T* src,          // shape: [N, K]
-    float* absmax,         // shape: [(N * K + block_size - 1) / block_size]
+    uint8_t* dst,   // shape: [(N * K + 1) / 2]
+    const T* src,   // shape: [N, K]
+    float* absmax,  // shape: [(N * K + block_size - 1) / block_size]
     int32_t block_size,
     int32_t N,
     int32_t K,
     onnxruntime::concurrency::ThreadPool* thread_pool) {
-
   if (16 == block_size) {
     QuantizeBlockwiseBnb4<T, 16>(dst, src, absmax, N, K, thread_pool);
   } else if (32 == block_size) {
@@ -62,9 +61,9 @@ void QuantizeBlockwiseBnb4(
 
 template <typename T, int32_t block_size>
 void DequantizeBlockwiseBnb4(
-    T* dst,                      // shape: [N, K]
-    const uint8_t* src,          // shape: [(N * K + 1) / 2)]
-    const float* absmax,         // shape: [(N * K + block_size - 1) / block_size]
+    T* dst,               // shape: [N, K]
+    const uint8_t* src,   // shape: [(N * K + 1) / 2)]
+    const float* absmax,  // shape: [(N * K + block_size - 1) / block_size]
     int32_t N,
     int32_t K,
     onnxruntime::concurrency::ThreadPool* thread_pool) {
@@ -82,14 +81,13 @@ void DequantizeBlockwiseBnb4(
 
 template <typename T>
 void DequantizeBlockwiseBnb4(
-    T* dst,                      // shape: [N, K]
-    const uint8_t* src,          // shape: [(N * K + 1) / 2)]
-    const float* absmax,         // shape: [(N * K + block_size - 1) / block_size]
+    T* dst,               // shape: [N, K]
+    const uint8_t* src,   // shape: [(N * K + 1) / 2)]
+    const float* absmax,  // shape: [(N * K + block_size - 1) / block_size]
     int32_t block_size,
     int32_t N,
     int32_t K,
     onnxruntime::concurrency::ThreadPool* thread_pool) {
-
   if (16 == block_size) {
     DequantizeBlockwiseBnb4<T, 16>(dst, src, absmax, N, K, thread_pool);
   } else if (32 == block_size) {
@@ -104,8 +102,6 @@ void DequantizeBlockwiseBnb4(
     ORT_NOT_IMPLEMENTED("only block size 16, 32, 64, 128, 256 are supported.");
   }
 }
-
-
 
 }  // namespace contrib
 }  // namespace onnxruntime

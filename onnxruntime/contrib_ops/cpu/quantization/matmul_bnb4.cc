@@ -46,14 +46,13 @@ Status MatMulBnb4::Compute(OpKernelContext* ctx) const {
   ORT_RETURN_IF_ERROR(status);
   auto tmp_b_data_ptr = IAllocator::MakeUniquePtr<float>(allocator, SafeInt<size_t>(K_) * N_);
   DequantizeBlockwiseBnb4<float>(tmp_b_data_ptr.get(),
-                             b_quant_data,
-                             absmax_data,
-                             static_cast<int32_t>(block_size_),
-                             static_cast<int32_t>(N_),
-                             static_cast<int32_t>(K_),
-                             thread_pool);
+                                 b_quant_data,
+                                 absmax_data,
+                                 static_cast<int32_t>(block_size_),
+                                 static_cast<int32_t>(N_),
+                                 static_cast<int32_t>(K_),
+                                 thread_pool);
 
-  
   constexpr bool transa = false;
   constexpr bool transb = true;
   TensorShape b_shape({N_, K_});
