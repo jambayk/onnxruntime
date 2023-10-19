@@ -27,7 +27,7 @@ namespace test {
 
 void QuantizeDequantizeBnb4(std::vector<float>& raw_vals, // N X K
                         std::vector<uint8_t>& quant_vals,
-                        std::vector<float>& scales,
+                        std::vector<float>& absmax,
                         int32_t quant_type,
                         int32_t N,
                         int32_t K,
@@ -39,7 +39,7 @@ void QuantizeDequantizeBnb4(std::vector<float>& raw_vals, // N X K
   contrib::QuantizeBlockwiseBnb4<float>(
       quant_vals.data(),
       raw_vals.data(),
-      scales.data(),
+      absmax.data(),
       block_size,
       N,
       K,
@@ -48,7 +48,7 @@ void QuantizeDequantizeBnb4(std::vector<float>& raw_vals, // N X K
   contrib::DequantizeBlockwiseBnb4<float>(
       raw_vals.data(),
       quant_vals.data(),
-      scales.data(),
+      absmax.data(),
       block_size,
       N,
       K,
@@ -65,7 +65,7 @@ void RunTest(int64_t quant_type, int64_t M, int64_t N, int64_t K, int64_t block_
   int64_t quantized_numel = (numel + 1) / 2;
   int64_t total_block_count = (numel + block_size - 1) / block_size;
   std::vector<uint8_t> input1_vals(quantized_numel);
-  std::vector<float> scales(total_block_count);
+  std::vector<float> absmax(total_block_count);
 
   std::vector<float> quant_map(16);
   if (quant_type == 0) {
@@ -85,7 +85,7 @@ void RunTest(int64_t quant_type, int64_t M, int64_t N, int64_t K, int64_t block_
 
   QuantizeDequantizeBnb4(input1_f_vals,
                      input1_vals,
-                     scales,
+                     absmax,
                      quant_type,
                      static_cast<int32_t>(N),
                      static_cast<int32_t>(K),
@@ -110,7 +110,7 @@ void RunTest(int64_t quant_type, int64_t M, int64_t N, int64_t K, int64_t block_
   if (use_float16) {
     test.AddInput<MLFloat16>("A", {M, K}, ToFloat16(input0_vals), false);
     test.AddInput<uint8_t>("B", {quantized_numel}, input1_vals, true);
-    test.AddInput<float>("scales", {total_block_count}, scales, true);
+    test.AddInput<float>("absmax", {total_block_count}, absmax, true);
     test.AddInput<float>("quant_map", {16}, quant_map, true);
 
     test.AddOutput<MLFloat16>("Y", {M, N}, ToFloat16(expected_vals));
@@ -122,7 +122,7 @@ void RunTest(int64_t quant_type, int64_t M, int64_t N, int64_t K, int64_t block_
   } else {
     test.AddInput<float>("A", {M, K}, input0_vals, false);
     test.AddInput<uint8_t>("B", {quantized_numel}, input1_vals, true);
-    test.AddInput<float>("scales", {total_block_count}, scales, true);
+    test.AddInput<float>("absmax", {total_block_count}, absmax, true);
     test.AddInput<float>("quant_map", {16}, quant_map, true);
 
     test.AddOutput<float>("Y", {M, N}, expected_vals);

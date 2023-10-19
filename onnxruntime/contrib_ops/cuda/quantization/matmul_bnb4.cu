@@ -12,7 +12,7 @@ namespace cuda {
 
 #define num_values_4bit 32
 template <typename T, int THREADS, int BITS>
-__global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restrict__ A, const unsigned char *B,  const float *scale, const float *datatype, T * out,  int lda, int ldb, int ldc, int block_size)
+__global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restrict__ A, const unsigned char *B, const float *absmax, const float *datatype, T * out,  int lda, int ldb, int ldc, int block_size)
 {
 
   // per threadblock:
@@ -32,7 +32,7 @@ __global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restr
   T local_B[num_values_4bit/4];
   T local_A[num_values_4bit/4];
   __shared__ T quant_map[16];
-	T local_scale = T(0.0f);
+	T local_absmax = T(0.0f);
 
   for(int i = threadIdx.x; i < 16; i++)
     quant_map[i] = T(datatype[i]);
@@ -45,7 +45,7 @@ __global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restr
     int inner_idx_halved = inner_idx/2;
     int offset_B = ldb*row_B;
     int absidx = ((2*offset_B)+inner_idx)/block_size;
-	  local_scale = __ldg(&(scale[absidx]));
+	  local_absmax = __ldg(&(absmax[absidx]));
 
     if(row_B < N)
     {
@@ -76,14 +76,14 @@ __global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restr
       #pragma unroll
       for(int k = 0; k < num_values_8bit/4; k++)
       {
-        #if __CUDA_ARCH__ >= 800
-          local_B[k*2] = quant_map[local_B_4bit[(i*num_values_8bit/4) + k] >> 4]*local_scale;
-          local_B[k*2 + 1] = quant_map[local_B_4bit[(i*num_values_8bit/4) + k] & 0x0F]*local_scale;
-        #else
-          // bf16 multipliation not supported
-          local_B[k*2] = T((float)quant_map[local_B_4bit[(i*num_values_8bit/4) + k] >> 4]*(float)local_scale);
-          local_B[k*2 + 1] = T((float)quant_map[local_B_4bit[(i*num_values_8bit/4) + k] & 0x0F]*(float)local_scale);
-        #endif
+        // #if __CUDA_ARCH__ >= 800
+        local_B[k*2] = quant_map[local_B_4bit[(i*num_values_8bit/4) + k] >> 4]*local_absmax;
+        local_B[k*2 + 1] = quant_map[local_B_4bit[(i*num_values_8bit/4) + k] & 0x0F]*local_absmax;
+        // #else
+        //   // bf16 multipliation not supported
+        // local_B[k*2] = T((float)quant_map[local_B_4bit[(i*num_values_8bit/4) + k] >> 4]*(float)local_absmax);
+        // local_B[k*2 + 1] = T((float)quant_map[local_B_4bit[(i*num_values_8bit/4) + k] & 0x0F]*(float)local_absmax);
+        // #endif
       }
 
       if(inner_idx+(num_values_4bit/4) + (i*num_values_4bit/4) < K)
@@ -113,12 +113,12 @@ __global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restr
       #pragma unroll
       for(int k = 0; k < num_values_4bit/4; k++)
       {
-        #if __CUDA_ARCH__ >= 800
-          local_C += (float)(local_A[k]*local_B[k]);
-        #else
-          // bf16 multipliation not supported
-          local_C += ((float)local_A[k]*(float)local_B[k]);
-        #endif
+        // #if __CUDA_ARCH__ >= 800
+        local_C += (float)(local_A[k]*local_B[k]);
+        // #else
+        //   // bf16 multipliation not supported
+        // local_C += ((float)local_A[k]*(float)local_B[k]);
+        // #endif
       }
     }
   }
@@ -136,7 +136,7 @@ bool TryMatMulBnb4(
     T* output,
     const T* a_data,
     const unsigned char* b_data_quant,
-    const float* scale,
+    const float* absmax,
     const float* quant_map,
     int m,
     int n,
@@ -153,7 +153,7 @@ bool TryMatMulBnb4(
   int num_blocks = (n + 3) / 4;
 
   constexpr int bits = ::cuda::std::is_same_v<T, half> ? 16 : 32;
-  kgemm_4bit_inference_naive<T, 128, bits><<<num_blocks, 128, 0, stream>>>(m, n, k, a_data, b_data_quant, scale, quant_map, output, lda, ldb, ldc, block_size);
+  kgemm_4bit_inference_naive<T, 128, bits><<<num_blocks, 128, 0, stream>>>(m, n, k, a_data, b_data_quant, absmax, quant_map, output, lda, ldb, ldc, block_size);
 
   return true;
 }
@@ -162,7 +162,7 @@ template bool TryMatMulBnb4<float>(
     float* output,
     const float* a_data,
     const unsigned char* b_data_quant,
-    const float* scale,
+    const float* absmax,
     const float* quant_map,
     int m,
     int n,
@@ -174,7 +174,7 @@ template bool TryMatMulBnb4<half>(
     half* output,
     const half* a_data,
     const unsigned char* b_data_quant,
-    const float* scale,
+    const float* absmax,
     const float* quant_map,
     int m,
     int n,

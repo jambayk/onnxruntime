@@ -11,31 +11,31 @@ namespace contrib {
 namespace cuda {
 
 
-__device__ float dDequantizeFP4Tree(unsigned char val, float scale)
+__device__ float dDequantizeFP4Tree(unsigned char val, float absmax)
 {
   float sign = (val & 0b1000) == 8 ? -1.0f : 1.0f;
   if((val & 0b0100) == 4) // 0
     if((val & 0b0010) == 2) //01
       if((val & 0b0001) == 1) // 111
-        return 0.25000000f*scale*sign; // 1111
+        return 0.25000000f*absmax*sign; // 1111
       else
-        return 0.16666667f*scale*sign; // 1110
+        return 0.16666667f*absmax*sign; // 1110
     else
       if((val & 0b0001) == 1) // 110
-        return 0.50000000f*scale*sign; // 1101
+        return 0.50000000f*absmax*sign; // 1101
       else
-        return 0.33333333f*scale*sign; // 1100
+        return 0.33333333f*absmax*sign; // 1100
   else
     if((val & 0b0010) == 2) //10
       if((val & 0b0001) == 1) // 101
-        return 1.00000000f*scale*sign; // 1011
+        return 1.00000000f*absmax*sign; // 1011
       else
-        return 0.66666667f*scale*sign; // 1010
+        return 0.66666667f*absmax*sign; // 1010
     else
       if((val & 0b0001) == 1) // 100
-        return 5.208333333e-03f*scale*sign; // 1001
+        return 5.208333333e-03f*absmax*sign; // 1001
       else
-        return 0.00000000f*scale*sign; // 1000
+        return 0.00000000f*absmax*sign; // 1000
 }
 
 __device__ float dDequantizeNF4(unsigned char val)
@@ -90,8 +90,13 @@ __device__ float dDequantizeNF4(unsigned char val)
 }
 
 
+// __device__ static float nf4_data[16] = {
+//   -1.0, -0.6961928009986877, -0.5250730514526367, -0.39491748809814453, -0.28444138169288635, -0.18477343022823334, -0.09105003625154495, 0.0, 
+//   0.07958029955625534, 0.16093020141124725, 0.24611230194568634, 0.33791524171829224, 0.44070982933044434, 0.5626170039176941, 0.7229568362236023, 1.0};
+
+
 template<typename T, int TILE_SIZE, int THREADS, int NUM_PER_TH, int DATA_TYPE>
-__global__ void kDequantizeBlockwise(T *output, const unsigned char *quant_data, const float *scale, const int block_size, const int n)
+__global__ void kDequantizeBlockwise(T *output, const unsigned char *quant_data, const float *absmax, const int block_size, const int n)
 {
   const int n_load = (gridDim.x * TILE_SIZE);
   int valid_items_load = 0;
@@ -101,6 +106,13 @@ __global__ void kDequantizeBlockwise(T *output, const unsigned char *quant_data,
   T vals[NUM_PER_TH*2];
   unsigned char qvals[NUM_PER_TH];
   float local_abs_max = -FLT_MAX;
+  // T local_abs_max = T(0.0f);
+
+  // T quant_map[16];
+
+  // #pragma unroll 16
+  // for(int i = 0; i < 16; i++)
+  //   quant_map[i] = nf4_data[i];
 
   typedef cub::BlockLoad<unsigned char, THREADS, NUM_PER_TH, cub::BLOCK_LOAD_WARP_TRANSPOSE> LoadChar;
   typedef cub::BlockStore<T, THREADS, NUM_PER_TH*2, cub::BLOCK_STORE_WARP_TRANSPOSE> StoreT;
@@ -113,7 +125,7 @@ __global__ void kDequantizeBlockwise(T *output, const unsigned char *quant_data,
     valid_items_load = (n+1)/2 - i > TILE_SIZE ? TILE_SIZE : (n+1)/2 - i;
     valid_items_store = n - i*2 > TILE_SIZE*2 ? TILE_SIZE*2 : n - i*2;
 
-    local_abs_max = __ldg(&scale[(i+threadIdx.x*NUM_PER_TH)/(block_size)]);
+    local_abs_max = __ldg(&absmax[(i+threadIdx.x*NUM_PER_TH)/(block_size)]);
 
     __syncthreads();
     LoadChar(loadchar).Load(&(quant_data[i]), qvals, valid_items_load, 128);
@@ -134,6 +146,8 @@ __global__ void kDequantizeBlockwise(T *output, const unsigned char *quant_data,
         {
           vals[j*2] = dDequantizeNF4(qvals[j] >> 4)* local_abs_max;
           vals[j*2 + 1] = dDequantizeNF4(qvals[j] & 0x0F)* local_abs_max;
+          // vals[j*2] = quant_map[qvals[j] >> 4] * local_abs_max;
+          // vals[j*2 + 1] = quant_map[qvals[j] & 0x0F] * local_abs_max;
         }
         break;
     }
@@ -145,7 +159,7 @@ __global__ void kDequantizeBlockwise(T *output, const unsigned char *quant_data,
 
 
 template<class T>
-Status DequantizeBnb4(int quant_type, T *output, const unsigned char *quant_data, const float *scale, int block_size, int numel, cudaStream_t stream)
+Status DequantizeBnb4(int quant_type, T *output, const unsigned char *quant_data, const float *absmax, int block_size, int numel, cudaStream_t stream)
 {
   ORT_ENFORCE(quant_type == FP4 || quant_type == NF4, "Unsupported quantization type");
 
@@ -153,19 +167,19 @@ Status DequantizeBnb4(int quant_type, T *output, const unsigned char *quant_data
 
   switch (quant_type) {
     case FP4:
-      kDequantizeBlockwise<T, 512, 64, 8, FP4><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(output, quant_data, scale, block_size/2, numel);
+      kDequantizeBlockwise<T, 512, 64, 8, FP4><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(output, quant_data, absmax, block_size/2, numel);
       break;
     case NF4:
-      kDequantizeBlockwise<T, 512, 64, 8, NF4><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(output, quant_data, scale, block_size/2, numel);
+      kDequantizeBlockwise<T, 512, 64, 8, NF4><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(output, quant_data, absmax, block_size/2, numel);
       break;
   }
     
   return Status::OK();
 }
 
-template Status DequantizeBnb4<float>(int quant_type, float *output, const unsigned char *quant_data, const float *scale, int block_size, int numel, cudaStream_t stream);
+template Status DequantizeBnb4<float>(int quant_type, float *output, const unsigned char *quant_data, const float *absmax, int block_size, int numel, cudaStream_t stream);
 
-template Status DequantizeBnb4<half>(int quant_type, half *output, const unsigned char *quant_data, const float *scale, int block_size, int numel, cudaStream_t stream);
+template Status DequantizeBnb4<half>(int quant_type, half *output, const unsigned char *quant_data, const float *absmax, int block_size, int numel, cudaStream_t stream);
 
 }  // namespace cuda
 }  // namespace contrib

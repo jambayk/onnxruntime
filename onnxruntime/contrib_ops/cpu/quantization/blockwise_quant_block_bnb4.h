@@ -68,8 +68,8 @@ FORCEINLINE uint8_t QuantizeNF4(float x)
 }
 
 template <typename T, int32_t block_size>
-FORCEINLINE void QuantizeBlockBnb4(const T* src, uint8_t* dst, float& scale_block, int32_t block_idx, int32_t numel){
-  float absmax = 0.0f;
+FORCEINLINE void QuantizeBlockBnb4(const T* src, uint8_t* dst, float& absmax_block, int32_t block_idx, int32_t numel){
+  float local_absmax = 0.0f;
 
   int32_t block_len = std::min(block_size, numel - block_idx * block_size);
   int32_t src_offset = block_idx * block_size;
@@ -77,17 +77,17 @@ FORCEINLINE void QuantizeBlockBnb4(const T* src, uint8_t* dst, float& scale_bloc
 
   for (int32_t idx = 0; idx < block_len; idx++) {
     const float v = static_cast<float>(src[src_offset + idx]);
-    absmax = fmaxf(absmax, fabsf(v));
+    local_absmax = fmaxf(local_absmax, fabsf(v));
   }
 
-  scale_block = absmax;
-  const float reciprocal_scale = absmax ? 1.0f / absmax : 0.0f;
+  absmax_block = local_absmax;
+  const float reciprocal_absmax = local_absmax ? 1.0f / local_absmax : 0.0f;
 
   for (int32_t idx = 0; idx < block_len; idx += 2) {
-    const float v0 = src[src_offset + idx] * reciprocal_scale;
+    const float v0 = src[src_offset + idx] * reciprocal_absmax;
     const uint8_t vi0 = QuantizeNF4(v0);
 
-    const float v1 = (idx + 1 < block_len) ? src[src_offset + idx + 1] * reciprocal_scale : 0;
+    const float v1 = (idx + 1 < block_len) ? src[src_offset + idx + 1] * reciprocal_absmax : 0;
     const uint8_t vi1 = QuantizeNF4(v1);
 
     dst[dst_offset + idx / 2] =  (vi0 << 4) | vi1;
@@ -146,7 +146,7 @@ FORCEINLINE float DequantizeNF4(uint8_t val)
 }
 
 template <typename T, int32_t block_size>
-FORCEINLINE void DequantizeBlockBnb4(const uint8_t* src, T* dst, float scale_block, int32_t block_idx, int32_t numel){
+FORCEINLINE void DequantizeBlockBnb4(const uint8_t* src, T* dst, float absmax_block, int32_t block_idx, int32_t numel){
   int32_t block_len = std::min(block_size, numel - block_idx * block_size);
   int32_t src_offset = block_idx * block_size / 2;
   int32_t dst_offset = block_idx * block_size;
@@ -154,9 +154,9 @@ FORCEINLINE void DequantizeBlockBnb4(const uint8_t* src, T* dst, float scale_blo
   for (int32_t idx = 0; idx < block_len; idx += 2) {
     const uint8_t val = src[src_offset + idx / 2];
 
-    dst[dst_offset + idx] = static_cast<T>(DequantizeNF4(val >> 4) * scale_block);
+    dst[dst_offset + idx] = static_cast<T>(DequantizeNF4(val >> 4) * absmax_block);
     if(idx + 1 < block_len)
-      dst[dst_offset + idx + 1] = static_cast<T>(DequantizeNF4(val & 0xF) * scale_block);
+      dst[dst_offset + idx + 1] = static_cast<T>(DequantizeNF4(val & 0xF) * absmax_block);
   }
 }
 

@@ -26,7 +26,7 @@ struct DequantizeBnb4Params : cuda::tunable::OpParams {
   int quant_type_;
   T* output_;
   const uint8_t* quant_;
-  const float* scale_;
+  const float* absmax_;
   int n_;
   int k_;
 };
@@ -34,14 +34,14 @@ struct DequantizeBnb4Params : cuda::tunable::OpParams {
 template <typename T>
 class DequantizeBnb4 : public IKernelExplorer {
  public:
-  DequantizeBnb4(int quant_type, DeviceArray& output, DeviceArray& quant, DeviceArray& scale, int n, int k)
+  DequantizeBnb4(int quant_type, DeviceArray& output, DeviceArray& quant, DeviceArray& absmax, int n, int k)
       : IKernelExplorer(), params_() {
     params_.tuning_ctx = TuningContext();
     params_.stream = Stream();
     params_.quant_type_ = quant_type;
     params_.output_ = static_cast<T*>(output.ptr());
     params_.quant_ = static_cast<uint8_t*>(quant.ptr());
-    params_.scale_ = static_cast<float*>(scale.ptr());
+    params_.absmax_ = static_cast<float*>(absmax.ptr());
     params_.n_ = n;
     params_.k_ = k;
   }
@@ -51,7 +51,7 @@ class DequantizeBnb4 : public IKernelExplorer {
         params_.quant_type_, 
         params_.output_, 
         params_.quant_, 
-        params_.scale_, 
+        params_.absmax_, 
         64,
         params_.n_ * params_.k_, 
         params_.StreamHandle()));

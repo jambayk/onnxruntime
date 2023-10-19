@@ -85,18 +85,19 @@ def profile_matmul_fp_bnb4_func(quant_type, m, n, k, dtype, func):
     output = np.random.rand(m, n).astype(dtype)
     a = np.random.rand(m, k).astype(dtype)
     b = np.random.randint(low=0, high=255, size=(numel + 1) // 2).astype("uint8")
-    scale = np.random.rand((numel + block_size - 1) // block_size).astype("float32")
+    # absmax = np.random.rand((numel + block_size - 1) // block_size).astype(dtype)
+    absmax = np.random.rand((numel + block_size - 1) // block_size).astype("float32")
     quant_map = np.array(quant_maps[quant_type]).astype("float32")
     quant_map /= np.max(np.abs(quant_map))
 
     output_d = ke.DeviceArray(output)
     a_d = ke.DeviceArray(a)
     b_d = ke.DeviceArray(b)
-    scale_d = ke.DeviceArray(scale)
+    absmax_d = ke.DeviceArray(absmax)
     quant_map_d = ke.DeviceArray(quant_map)
     f = getattr(ke, func)
 
-    my_op = f(output_d, a_d, b_d, scale_d, quant_map_d, m, n, k)
+    my_op = f(output_d, a_d, b_d, absmax_d, quant_map_d, m, n, k)
     duration_ms = my_op.Profile()
     total_bytes = (m * k + n * k + m * n) * (dtype_to_bytes(dtype))
 

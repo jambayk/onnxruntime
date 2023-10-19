@@ -35,11 +35,11 @@ Status MatMulBnb4::Compute(OpKernelContext* ctx) const {
 
   const Tensor* a = ctx->Input<Tensor>(0);
   const Tensor* b_quant = ctx->Input<Tensor>(1);
-  const Tensor* scale = ctx->Input<Tensor>(2);
+  const Tensor* absmax = ctx->Input<Tensor>(2);
 
   const float* a_data = a->Data<float>();
   const uint8_t* b_quant_data = b_quant->Data<uint8_t>();
-  const float* scale_data = scale->Data<float>();
+  const float* absmax_data = absmax->Data<float>();
 
   AllocatorPtr allocator;
   auto status = ctx->GetTempSpaceAllocator(&allocator);
@@ -47,7 +47,7 @@ Status MatMulBnb4::Compute(OpKernelContext* ctx) const {
   auto tmp_b_data_ptr = IAllocator::MakeUniquePtr<float>(allocator, SafeInt<size_t>(K_) * N_);
   DequantizeBlockwiseBnb4<float>(tmp_b_data_ptr.get(),
                              b_quant_data,
-                             scale_data,
+                             absmax_data,
                              static_cast<int32_t>(block_size_),
                              static_cast<int32_t>(N_),
                              static_cast<int32_t>(K_),

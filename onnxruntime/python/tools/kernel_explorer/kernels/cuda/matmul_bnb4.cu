@@ -26,7 +26,7 @@ struct MatrixFloatBnb4Params : cuda::tunable::OpParams {
   T* output_;
   const T* a_;
   const uint8_t* b_;
-  const float* scale_;
+  const float* absmax_;
   const float* quant_map_;
   int m_;
   int n_;
@@ -39,7 +39,7 @@ class MatrixFloatBnb4 : public IKernelExplorer {
   MatrixFloatBnb4(DeviceArray& output,
                   DeviceArray& a,
                   DeviceArray& b,
-                  DeviceArray& scale,
+                  DeviceArray& absmax,
                   DeviceArray& quant_map,
                   int m, int n, int k) {
     params_.tuning_ctx = TuningContext();
@@ -47,7 +47,7 @@ class MatrixFloatBnb4 : public IKernelExplorer {
     params_.output_ = static_cast<T*>(output.ptr());
     params_.a_ = static_cast<T*>(a.ptr());
     params_.b_ = static_cast<uint8_t*>(b.ptr());
-    params_.scale_ = static_cast<float*>(scale.ptr());
+    params_.absmax_ = static_cast<float*>(absmax.ptr());
     params_.quant_map_ = static_cast<float*>(quant_map.ptr());
     params_.m_ = m;
     params_.n_ = n;
@@ -59,7 +59,7 @@ class MatrixFloatBnb4 : public IKernelExplorer {
         params_.output_,
         params_.a_,
         params_.b_,
-        params_.scale_,
+        params_.absmax_,
         params_.quant_map_,
         params_.m_,
         params_.n_,
