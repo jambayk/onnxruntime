@@ -69,7 +69,7 @@ template <typename T>
 void QuantizeMatMulBnb4Blockwise(
     py::array_t<uint8_t> dst,
     py::array_t<T> src,
-    py::array_t<T> scale,
+    py::array_t<float> scale,
     int32_t block_size,
     int32_t N,
     int32_t K) {
@@ -84,7 +84,7 @@ void QuantizeMatMulBnb4Blockwise(
   contrib::QuantizeBlockwiseBnb4<T>(
       static_cast<uint8_t*>(dst_buf.ptr),
       static_cast<const T*>(src_buf.ptr),
-      static_cast<T*>(scale_buf.ptr),
+      static_cast<float*>(scale_buf.ptr),
       block_size,
       N,
       K,
@@ -95,7 +95,7 @@ template <typename T>
 void DeQuantizeMatMulBnb4Blockwise(
     py::array_t<T> dst,
     py::array_t<uint8_t> src,
-    py::array_t<T> scale,
+    py::array_t<float> scale,
     int32_t block_size,
     int32_t N,
     int32_t K) {
@@ -107,10 +107,10 @@ void DeQuantizeMatMulBnb4Blockwise(
   py::buffer_info src_buf = src.request();
   py::buffer_info scale_buf = scale.request();
 
-  contrib::DeQuantizeBlockwiseBnb4<T>(
+  contrib::DequantizeBlockwiseBnb4<T>(
       static_cast<T*>(dst_buf.ptr),
       static_cast<const uint8_t*>(src_buf.ptr),
-      static_cast<T*>(scale_buf.ptr),
+      static_cast<float*>(scale_buf.ptr),
       block_size,
       N,
       K,

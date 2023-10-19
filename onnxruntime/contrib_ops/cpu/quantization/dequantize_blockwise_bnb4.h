@@ -19,7 +19,7 @@ template <typename T, int32_t block_size>
 void QuantizeBlockwiseBnb4(
     uint8_t* dst,          // shape: [(N * K + 1) / 2] 
     const T* src,          // shape: [N, K]
-    T* scale,              // shape: [(N * K + block_size - 1) / block_size]
+    float* scale,              // shape: [(N * K + block_size - 1) / block_size]
     int32_t N,
     int32_t K,
     onnxruntime::concurrency::ThreadPool* thread_pool) {
@@ -39,7 +39,7 @@ template <typename T>
 void QuantizeBlockwiseBnb4(
     uint8_t* dst,          // shape: [(N * K + 1) / 2]
     const T* src,          // shape: [N, K]
-    T* scale,              // shape: [(N * K + block_size - 1) / block_size]
+    float* scale,              // shape: [(N * K + block_size - 1) / block_size]
     int32_t block_size,
     int32_t N,
     int32_t K,
@@ -64,7 +64,7 @@ template <typename T, int32_t block_size>
 void DequantizeBlockwiseBnb4(
     T* dst,                      // shape: [N, K]
     const uint8_t* src,          // shape: [(N * K + 1) / 2)]
-    const T* scale,              // shape: [(N * K + block_size - 1) / block_size]
+    const float* scale,              // shape: [(N * K + block_size - 1) / block_size]
     int32_t N,
     int32_t K,
     onnxruntime::concurrency::ThreadPool* thread_pool) {
@@ -81,10 +81,10 @@ void DequantizeBlockwiseBnb4(
 }
 
 template <typename T>
-void DeQuantizeBlockwiseBnb4(
+void DequantizeBlockwiseBnb4(
     T* dst,                      // shape: [N, K]
     const uint8_t* src,          // shape: [(N * K + 1) / 2)]
-    const T* scale,              // shape: [(N * K + block_size - 1) / block_size]
+    const float* scale,              // shape: [(N * K + block_size - 1) / block_size]
     int32_t block_size,
     int32_t N,
     int32_t K,
