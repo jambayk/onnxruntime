@@ -91,39 +91,11 @@ void QuantizeMatMulBnb4Blockwise(
       tp.get());
 }
 
-template <typename T>
-void DeQuantizeMatMulBnb4Blockwise(
-    py::array_t<T> dst,
-    py::array_t<uint8_t> src,
-    py::array_t<float> scale,
-    int32_t block_size,
-    int32_t N,
-    int32_t K) {
-  OrtThreadPoolParams to;
-  auto tp = concurrency::CreateThreadPool(&onnxruntime::Env::Default(), to,
-                                          concurrency::ThreadPoolType::INTRA_OP);
-
-  py::buffer_info dst_buf = dst.request();
-  py::buffer_info src_buf = src.request();
-  py::buffer_info scale_buf = scale.request();
-
-  contrib::DequantizeBlockwiseBnb4<T>(
-      static_cast<T*>(dst_buf.ptr),
-      static_cast<const uint8_t*>(src_buf.ptr),
-      static_cast<float*>(scale_buf.ptr),
-      block_size,
-      N,
-      K,
-      tp.get());
-}
-
 void CreateQuantPybindModule(py::module& m) {
   m.def("quantize_matmul_4bits", &QuantizeMatMul4BitsBlockwise<float>);
   m.def("quantize_matmul_4bits", &QuantizeMatMul4BitsBlockwise<MLFloat16>);
   m.def("quantize_matmul_bnb4", &QuantizeMatMulBnb4Blockwise<float>);
   m.def("quantize_matmul_bnb4", &QuantizeMatMulBnb4Blockwise<MLFloat16>);
-  m.def("dequantize_matmul_bnb4", &DeQuantizeMatMulBnb4Blockwise<float>);
-  m.def("dequantize_matmul_bnb4", &DeQuantizeMatMulBnb4Blockwise<MLFloat16>);
 }
 
 }  // namespace python
