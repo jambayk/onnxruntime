@@ -146,6 +146,10 @@ bool TryMatMulBnb4(
   if (k % block_size != 0 || m > 1) {
     return false;
   }
+  // supported block_sizes are [4096, 2048, 1024, 512, 256, 128, 64, 32]
+  if (block_size % 32 != 0 || block_size > 4096) {
+    return false;
+  }
 
   int lda = k;
   int ldb = (k+1)/2;
