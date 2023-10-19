@@ -28,27 +28,6 @@ def dtype_to_funcs_cublas(dtype):
 
 
 quant_enums = {"FP4": 0, "NF4": 1}
-quant_maps = {
-    "FP4": [0, 0.0625, 8.0, 12.0, 4.0, 6.0, 2.0, 3.0, -0, -0.0625, -8.0, -12.0, -4.0, -6.0, -2.0, -3.0],
-    "NF4": [
-        -1.0,
-        -0.6961928009986877,
-        -0.5250730514526367,
-        -0.39491748809814453,
-        -0.28444138169288635,
-        -0.18477343022823334,
-        -0.09105003625154495,
-        0.0,
-        0.07958029955625534,
-        0.16093020141124725,
-        0.24611230194568634,
-        0.33791524171829224,
-        0.44070982933044434,
-        0.5626170039176941,
-        0.7229568362236023,
-        1.0,
-    ],
-}
 
 
 dtypes = ["float16", "float32"]
@@ -78,7 +57,7 @@ class MatrixFpBnb4Metric(MatrixMulMetric):
         )
 
 
-def profile_matmul_fp_bnb4_func(quant_type, m, n, k, dtype, func):
+def profile_matmul_fp_bnb4_func(qt, m, n, k, dtype, func):
     np.random.seed(0)
     block_size = 64
     numel = n * k
@@ -87,21 +66,20 @@ def profile_matmul_fp_bnb4_func(quant_type, m, n, k, dtype, func):
     b = np.random.randint(low=0, high=255, size=(numel + 1) // 2).astype("uint8")
     # absmax = np.random.rand((numel + block_size - 1) // block_size).astype(dtype)
     absmax = np.random.rand((numel + block_size - 1) // block_size).astype("float32")
-    quant_map = np.array(quant_maps[quant_type]).astype("float32")
-    quant_map /= np.max(np.abs(quant_map))
+    quant_map_buffer = np.zeros(16).astype(dtype)
 
     output_d = ke.DeviceArray(output)
     a_d = ke.DeviceArray(a)
     b_d = ke.DeviceArray(b)
     absmax_d = ke.DeviceArray(absmax)
-    quant_map_d = ke.DeviceArray(quant_map)
+    quant_map_buffer_d = ke.DeviceArray(quant_map_buffer)
     f = getattr(ke, func)
 
-    my_op = f(output_d, a_d, b_d, absmax_d, quant_map_d, m, n, k)
+    my_op = f(output_d, a_d, b_d, absmax_d, quant_map_buffer_d, quant_enums[qt], m, n, k)
     duration_ms = my_op.Profile()
     total_bytes = (m * k + n * k + m * n) * (dtype_to_bytes(dtype))
 
-    ke.report(MatrixFpBnb4Metric(func, dtype, duration_ms, total_bytes, m, n, k, quant_type))
+    ke.report(MatrixFpBnb4Metric(func, dtype, duration_ms, total_bytes, m, n, k, qt))
 
 
 def profile_gemm_func(m, n, k, dtype, func):

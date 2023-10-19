@@ -15,8 +15,11 @@ typedef enum Bnb_DataType_t
 } Bnb_DataType_t;
 
 template <class T>
+Status SetQuantMap(int quant_type, T* quant_map_buffer, cudaStream_t stream);
+
+template <class T>
 Status DequantizeBnb4(
-    int quant_type,
+    const T* quant_map,
     T* output,
     const unsigned char* quant_data, 
     const float* absmax,

@@ -10,11 +10,11 @@ namespace cuda {
 
 template <class T>
 bool TryMatMulBnb4(
+    const T* quant_map,
     T* output,
     const T* a_data,
     const unsigned char* b_data_quant,
     const float* absmax,
-    const float* quant_map,
     int m,
     int n,
     int k,

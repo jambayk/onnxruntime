@@ -12,7 +12,7 @@ namespace cuda {
 
 #define num_values_4bit 32
 template <typename T, int THREADS, int BITS>
-__global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restrict__ A, const unsigned char *B, const float *absmax, const float *datatype, T * out,  int lda, int ldb, int ldc, int block_size)
+__global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restrict__ A, const unsigned char *B, const float *absmax, const T *datatype, T * out,  int lda, int ldb, int ldc, int block_size)
 {
 
   // per threadblock:
@@ -133,11 +133,11 @@ __global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restr
 
 template <class T>
 bool TryMatMulBnb4(
+    const T* quant_map,
     T* output,
     const T* a_data,
     const unsigned char* b_data_quant,
     const float* absmax,
-    const float* quant_map,
     int m,
     int n,
     int k,
@@ -159,11 +159,11 @@ bool TryMatMulBnb4(
 }
 
 template bool TryMatMulBnb4<float>(
+    const float* quant_map,
     float* output,
     const float* a_data,
     const unsigned char* b_data_quant,
     const float* absmax,
-    const float* quant_map,
     int m,
     int n,
     int k,
@@ -171,11 +171,11 @@ template bool TryMatMulBnb4<float>(
     cudaStream_t stream);
 
 template bool TryMatMulBnb4<half>(
+    const half* quant_map,
     half* output,
     const half* a_data,
     const unsigned char* b_data_quant,
     const float* absmax,
-    const float* quant_map,
     int m,
     int n,
     int k,

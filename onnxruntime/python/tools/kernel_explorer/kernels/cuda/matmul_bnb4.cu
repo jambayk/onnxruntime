@@ -12,6 +12,7 @@
 #include "core/providers/cuda/tunable/cuda_tunable.h"
 #include "python/tools/kernel_explorer/kernel_explorer_interface.h"
 #include "python/tools/kernel_explorer/kernels/vector_add_kernel.cuh"
+#include "contrib_ops/cuda/quantization/dequantize_blockwise_bnb4.cuh"
 #include "contrib_ops/cuda/quantization/matmul_bnb4.cuh"
 
 namespace py = pybind11;
@@ -23,11 +24,12 @@ template <typename T>
 struct MatrixFloatBnb4Params : cuda::tunable::OpParams {
   std::string Signature() const override { return std::to_string(n_); }
 
+  int quant_type_;
   T* output_;
   const T* a_;
   const uint8_t* b_;
   const float* absmax_;
-  const float* quant_map_;
+  T* quant_map_buffer_;
   int m_;
   int n_;
   int k_;
@@ -40,27 +42,32 @@ class MatrixFloatBnb4 : public IKernelExplorer {
                   DeviceArray& a,
                   DeviceArray& b,
                   DeviceArray& absmax,
-                  DeviceArray& quant_map,
-                  int m, int n, int k) {
+                  DeviceArray& quant_map_buffer,
+                  int quant_type, int m, int n, int k) {
     params_.tuning_ctx = TuningContext();
     params_.stream = Stream();
     params_.output_ = static_cast<T*>(output.ptr());
     params_.a_ = static_cast<T*>(a.ptr());
     params_.b_ = static_cast<uint8_t*>(b.ptr());
     params_.absmax_ = static_cast<float*>(absmax.ptr());
-    params_.quant_map_ = static_cast<float*>(quant_map.ptr());
+    params_.quant_map_buffer_ = static_cast<T*>(quant_map_buffer.ptr());
+    params_.quant_type_ = quant_type;
     params_.m_ = m;
     params_.n_ = n;
     params_.k_ = k;
   }
 
   void Run() override {
-    contrib::cuda::TryMatMulBnb4<T>(
+    ORT_THROW_IF_ERROR(contrib::cuda::SetQuantMap(
+        params_.quant_type_,
+        params_.quant_map_buffer_,
+        params_.StreamHandle()));
+    contrib::cuda::TryMatMulBnb4(
+        params_.quant_map_buffer_,
         params_.output_,
         params_.a_,
         params_.b_,
         params_.absmax_,
-        params_.quant_map_,
         params_.m_,
         params_.n_,
         params_.k_,
@@ -74,11 +81,11 @@ class MatrixFloatBnb4 : public IKernelExplorer {
   ParamsT params_{};
 };
 
-#define REGISTER_OP(name, type)                                                                             \
-  py::class_<name<type>>(m, #name "_" #type)                                                                \
-      .def(py::init<DeviceArray&, DeviceArray&, DeviceArray&, DeviceArray&, DeviceArray&, int, int, int>()) \
-      .def("SetRepeats", &name<type>::SetRepeats)                                                           \
-      .def("Profile", &name<type>::Profile)                                                                 \
+#define REGISTER_OP(name, type)                                                                                  \
+  py::class_<name<type>>(m, #name "_" #type)                                                                     \
+      .def(py::init<DeviceArray&, DeviceArray&, DeviceArray&, DeviceArray&, DeviceArray&, int, int, int, int>()) \
+      .def("SetRepeats", &name<type>::SetRepeats)                                                                \
+      .def("Profile", &name<type>::Profile)                                                                      \
       .def("Run", &name<type>::Run);
 
 KE_REGISTER(m) {

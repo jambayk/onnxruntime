@@ -38,14 +38,22 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
   const Tensor* a = ctx->Input<Tensor>(0);
   const Tensor* b_quant = ctx->Input<Tensor>(1);
   const Tensor* absmax = ctx->Input<Tensor>(2);
-  const Tensor* quant_map = ctx->Input<Tensor>(3);
 
   const auto* a_data = a->Data<T>();
   const uint8_t* b_quant_data = b_quant->Data<uint8_t>();
-  const float_t* quant_map_data = quant_map->Data<float_t>();
   const float_t* absmax_data = absmax->Data<float_t>();
 
   typedef typename ToCudaType<T>::MappedType CudaT;
+
+  // TODO: find a better way to create the quant_map without using a buffer
+  // don't want to use malloc directly so asking from the caller
+  // can create a __device__ static array for float but doesn't work for half
+  IAllocatorUniquePtr<T> quant_map_buffer = GetScratchBuffer<T>(16, ctx->GetComputeStream());
+  auto* quant_map_buffer_data = quant_map_buffer.get();
+  ORT_RETURN_IF_ERROR(SetQuantMap<CudaT>(
+      SafeInt<int>(quant_type_),
+      reinterpret_cast<CudaT*>(quant_map_buffer_data),
+      static_cast<cudaStream_t>(ctx->GetComputeStream()->GetHandle())));
 
   constexpr bool transa = false;
   constexpr bool transb = true;
@@ -59,12 +67,12 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
   if (Y->Shape().Size() == 0) return Status::OK();
 
   bool is_4bit_done = TryMatMulBnb4(
+      reinterpret_cast<const CudaT*>(quant_map_buffer_data),
       reinterpret_cast<CudaT*>(Y->MutableData<T>()),
       reinterpret_cast<const CudaT*>(a_data),
       b_quant_data,
     //   reinterpret_cast<const CudaT*>(absmax_data),
       absmax_data,
-      quant_map_data,
       SafeInt<int>(helper.M()),
       SafeInt<int>(helper.N()),
       SafeInt<int>(helper.K()),
@@ -75,11 +83,11 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
     IAllocatorUniquePtr<T> b_dequant_ptr = GetScratchBuffer<T>(N_ * K_, ctx->GetComputeStream());
     auto* b_dequant_data = b_dequant_ptr.get();
     ORT_RETURN_IF_ERROR(DequantizeBnb4<CudaT>(
-        SafeInt<int>(quant_type_),
+        reinterpret_cast<const CudaT*>(quant_map_buffer_data),
         reinterpret_cast<CudaT*>(b_dequant_data),
         b_quant_data,
-        // reinterpret_cast<const CudaT*>(absmax_data),
         absmax_data,
+        // reinterpret_cast<const CudaT*>(absmax_data),
         SafeInt<int>(block_size_),
         SafeInt<int>(N_ * K_),
         static_cast<cudaStream_t>(ctx->GetComputeStream()->GetHandle())));

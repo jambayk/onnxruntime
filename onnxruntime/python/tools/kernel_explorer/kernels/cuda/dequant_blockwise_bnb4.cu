@@ -27,6 +27,7 @@ struct DequantizeBnb4Params : cuda::tunable::OpParams {
   T* output_;
   const uint8_t* quant_;
   const float* absmax_;
+  T* quant_map_buffer_;
   int n_;
   int k_;
 };
@@ -34,7 +35,7 @@ struct DequantizeBnb4Params : cuda::tunable::OpParams {
 template <typename T>
 class DequantizeBnb4 : public IKernelExplorer {
  public:
-  DequantizeBnb4(int quant_type, DeviceArray& output, DeviceArray& quant, DeviceArray& absmax, int n, int k)
+  DequantizeBnb4(int quant_type, DeviceArray& output, DeviceArray& quant, DeviceArray& absmax,  DeviceArray& quant_map_buffer, int n, int k)
       : IKernelExplorer(), params_() {
     params_.tuning_ctx = TuningContext();
     params_.stream = Stream();
@@ -42,13 +43,18 @@ class DequantizeBnb4 : public IKernelExplorer {
     params_.output_ = static_cast<T*>(output.ptr());
     params_.quant_ = static_cast<uint8_t*>(quant.ptr());
     params_.absmax_ = static_cast<float*>(absmax.ptr());
+    params_.quant_map_buffer_ = static_cast<T*>(quant_map_buffer.ptr());
     params_.n_ = n;
     params_.k_ = k;
   }
 
   void Run() override {
+    ORT_THROW_IF_ERROR(contrib::cuda::SetQuantMap(
+        params_.quant_type_,
+        params_.quant_map_buffer_,
+        params_.StreamHandle()));
     ORT_THROW_IF_ERROR(contrib::cuda::DequantizeBnb4(
-        params_.quant_type_, 
+      params_.quant_map_buffer_,
         params_.output_, 
         params_.quant_, 
         params_.absmax_, 
@@ -65,7 +71,7 @@ class DequantizeBnb4 : public IKernelExplorer {
 
 #define REGISTER_OP(name, type)                                            \
   py::class_<name<type>>(m, #name "_" #type)                               \
-      .def(py::init<int, DeviceArray&, DeviceArray&, DeviceArray&, int, int>()) \
+      .def(py::init<int, DeviceArray&, DeviceArray&, DeviceArray&, DeviceArray&, int, int>()) \
       .def("SetRepeats", &name<type>::SetRepeats)                          \
       .def("Profile", &name<type>::Profile)                                \
       .def("Run", &name<type>::Run);
