@@ -18,7 +18,7 @@ class MatMulBnb4 final : public OpKernel {
     ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("N", &N_));
     ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("block_size", &block_size_));
     ORT_ENFORCE(Status::OK() == info.GetAttr<int64_t>("quant_type", &quant_type_));
-    ORT_ENFORCE(quant_type_ == 1, "Invalid quant_type, only 1 (NF4) is supported.");
+    ORT_ENFORCE(quant_type_ == FP4 || quant_type_ == NF4, "Invalid quant_type, only 0 (FP4) and 1 (NF4) are supported.");
   }
 
   Status Compute(OpKernelContext* context) const override;
@@ -49,6 +49,7 @@ Status MatMulBnb4::Compute(OpKernelContext* ctx) const {
                                  b_quant_data,
                                  absmax_data,
                                  static_cast<int32_t>(block_size_),
+                                 static_cast<int32_t>(quant_type_),
                                  static_cast<int32_t>(N_),
                                  static_cast<int32_t>(K_),
                                  thread_pool);

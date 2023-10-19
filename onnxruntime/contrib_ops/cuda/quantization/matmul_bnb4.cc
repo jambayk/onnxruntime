@@ -5,6 +5,7 @@
 #include "core/providers/cuda/cuda_kernel.h"
 #include "core/providers/cuda/shared_inc/fpgeneric.h"
 #include "core/providers/cpu/math/matmul_helper.h"
+#include "contrib_ops/cpu/quantization/blockwise_quant_block_bnb4.h"
 #include "matmul_bnb4.cuh"
 #include "dequantize_blockwise_bnb4.cuh"
 

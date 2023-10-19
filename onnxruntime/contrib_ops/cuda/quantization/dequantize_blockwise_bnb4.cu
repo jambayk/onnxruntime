@@ -4,26 +4,17 @@
 #include <cub/cub.cuh>
 #include <cuda_fp16.h>
 #include "core/providers/cuda/cuda_common.h"
+#include "contrib_ops/cpu/quantization/blockwise_quant_block_bnb4.h"
 #include "dequantize_blockwise_bnb4.cuh"
 
 namespace onnxruntime {
 namespace contrib {
 namespace cuda {
 
-static float fp4_qaunt_map[16] = {
-  0.00000000f, 5.208333333e-03f, 0.66666667f, 1.00000000f, 1.00000000f, 0.50000000f, 0.16666667f, 0.25000000f,
-  -0.00000000f, -5.208333333e-03f, -0.66666667f, -1.00000000f, -1.00000000f, -0.50000000f, -0.16666667f, -0.25000000f};
-
-
-static float nf4_qaunt_map[16] = {
-  -1.0, -0.6961928009986877, -0.5250730514526367, -0.39491748809814453, -0.28444138169288635, -0.18477343022823334, -0.09105003625154495, 0.0, 
-  0.07958029955625534, 0.16093020141124725, 0.24611230194568634, 0.33791524171829224, 0.44070982933044434, 0.5626170039176941, 0.7229568362236023, 1.0}; 
-
-
 template<class T>
 Status SetBnbQuantMap(int quant_type, T* quant_map_buffer, cudaStream_t stream)
 {
-  ORT_ENFORCE(quant_type == FP4 || quant_type == NF4, "Unsupported quantization type");
+  ORT_ENFORCE(quant_type == FP4 || quant_type == NF4, "Invalid quant_type, only 0 (FP4) and 1 (NF4) are supported.");
   
   T host_quant_map[16];
   switch (quant_type) {

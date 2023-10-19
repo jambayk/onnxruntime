@@ -8,12 +8,6 @@ namespace onnxruntime {
 namespace contrib {
 namespace cuda {
 
-typedef enum Bnb_DataType_t
-{
-  FP4 = 0,
-  NF4 = 1,
-} Bnb_DataType_t;
-
 template <class T>
 Status SetBnbQuantMap(int quant_type, T* quant_map_buffer, cudaStream_t stream);
 

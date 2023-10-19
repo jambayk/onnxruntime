@@ -69,11 +69,11 @@ class DequantizeBnb4 : public IKernelExplorer {
   ParamsT params_{};
 };
 
-#define REGISTER_OP(name, type)                                            \
-  py::class_<name<type>>(m, #name "_" #type)                               \
+#define REGISTER_OP(name, type)                                                               \
+  py::class_<name<type>>(m, #name "_" #type)                                                  \
       .def(py::init<int, DeviceArray&, DeviceArray&, DeviceArray&, DeviceArray&, int, int>()) \
-      .def("SetRepeats", &name<type>::SetRepeats)                          \
-      .def("Profile", &name<type>::Profile)                                \
+      .def("SetRepeats", &name<type>::SetRepeats)                                             \
+      .def("Profile", &name<type>::Profile)                                                   \
       .def("Run", &name<type>::Run);
 
 KE_REGISTER(m) {

@@ -16,8 +16,63 @@ namespace contrib {
 #define FORCEINLINE __attribute__((always_inline)) inline
 #endif
 
-// TODO(jambayk): Does this improve performance?
-FORCEINLINE uint8_t QuantizeNF4(float x) {
+typedef enum Bnb_DataType_t
+{
+  FP4 = 0,
+  NF4 = 1,
+} Bnb_DataType_t;
+
+// TODO(jambayk): Does FORCEINLINE this improve performance?
+FORCEINLINE uint8_t QuantizeOneFP4(float x)
+{
+  // FP4 with bias of 3
+  // first bit is a sign
+  // subnormals
+  // 0b000 = 0
+  // 0b001 = 0.0625
+  // 0b110 = 2
+  // 0b111 = 3
+  // 0b100 = 4
+  // 0b101 = 6
+  // 0b010 = 8
+  // 0b011 = 12
+
+
+  // we do a binary search
+  // the pivots are divided by 12 (the FP4 absmax)
+  // since we assum input data is in [-1.0, 1.0]
+
+  // !be careful here, its easy to make a mistake
+  // that is difficult to noice if you add an extra
+  // zero somewhere!
+
+  int sign = x < 0 ? 0b1000 : 0b0000;
+  x = fabsf(x);
+  if(x > 0.29166667f)
+    if( x > 0.583333f)
+      if( x > 0.8333333f)
+        return 0b0011+sign;
+      else
+        return 0b0010+sign;
+    else
+      if(x > 0.4166667f)
+        return 0b101+sign;
+      else
+        return 0b100+sign;
+  else
+    if(x > 0.0859375f)
+      if(x > 0.20833333f)
+        return 0b0111+sign;
+      else
+        return 0b0110+sign;
+    else
+      if(x > 0.00260417f)
+        return 0b0001+sign;
+      else
+        return 0b0000+sign;
+}
+
+FORCEINLINE uint8_t QuantizeOneNF4(float x) {
   if (x > 0.03979014977812767f)
     if (x > 0.3893125355243683f)      // 1
       if (x > 0.6427869200706482f)    // 11
@@ -59,7 +114,15 @@ FORCEINLINE uint8_t QuantizeNF4(float x) {
     return 0b0000;
 }
 
-template <typename T, int32_t block_size>
+template<int32_t DATA_TYPE>
+FORCEINLINE uint8_t QuantizeOneBnb4(float x){
+  if constexpr (DATA_TYPE == FP4)
+    return QuantizeOneFP4(x);
+  else
+    return QuantizeOneNF4(x);
+}
+
+template <typename T, int32_t block_size, int32_t DATA_TYPE>
 FORCEINLINE void QuantizeBlockBnb4(const T* src, uint8_t* dst, T& absmax_block, int32_t block_idx, int32_t numel) {
   float local_absmax = 0.0f;
 
@@ -77,59 +140,38 @@ FORCEINLINE void QuantizeBlockBnb4(const T* src, uint8_t* dst, T& absmax_block, 
 
   for (int32_t idx = 0; idx < block_len; idx += 2) {
     const float v0 = static_cast<float>(src[src_offset + idx]) * reciprocal_absmax;
-    const uint8_t vi0 = QuantizeNF4(v0);
+    const uint8_t vi0 = QuantizeOneBnb4<DATA_TYPE>(v0);
 
     const float v1 = (idx + 1 < block_len) ? static_cast<float>(src[src_offset + idx + 1]) * reciprocal_absmax : 0;
-    const uint8_t vi1 = QuantizeNF4(v1);
+    const uint8_t vi1 = QuantizeOneBnb4<DATA_TYPE>(v1);
 
     dst[dst_offset + idx / 2] = (vi0 << 4) | vi1;
   }
 }
 
-FORCEINLINE float DequantizeNF4(uint8_t val) {
-  if ((val & 0b1000) == 8)
-    if ((val & 0b0100) == 4)      // 1
-      if ((val & 0b0010) == 2)    // 11
-        if ((val & 0b0001) == 1)  // 111
-          return 1.0f;
-        else
-          return 0.7229568362236023f;
-      else if ((val & 0b0001) == 1)  // 110
-        return 0.5626170039176941f;
-      else
-        return 0.44070982933044434f;
-    else if ((val & 0b0010) == 2)  // 10
-      if ((val & 0b0001) == 1)     // 101
-        return 0.33791524171829224f;
-      else
-        return 0.24611230194568634f;
-    else if ((val & 0b0001) == 1)  // 100
-      return 0.16093020141124725f;
-    else
-      return 0.07958029955625534f;
 
-  else if ((val & 0b0100) == 4)  // 0
-    if ((val & 0b0010) == 2)     // 01
-      if ((val & 0b0001) == 1)   // 011
-        return 0.0f;
-      else
-        return -0.09105003625154495f;
-    else if ((val & 0b0001) == 1)  // 010
-      return -0.18477343022823334f;
-    else
-      return -0.28444138169288635f;
-  else if ((val & 0b0010) == 2)  // 00
-    if ((val & 0b0001) == 1)     // 001
-      return -0.39491748809814453f;
-    else
-      return -0.5250730514526367f;
-  else if ((val & 0b0001) == 1)  // 000
-    return -0.6961928009986877f;
+static float fp4_qaunt_map[16] = {
+  0.00000000f, 5.208333333e-03f, 0.66666667f, 1.00000000f, 
+  1.00000000f, 0.50000000f, 0.16666667f, 0.25000000f,
+  -0.00000000f, -5.208333333e-03f, -0.66666667f, -1.00000000f, 
+  -1.00000000f, -0.50000000f, -0.16666667f, -0.25000000f};
+
+
+static float nf4_qaunt_map[16] = {
+  -1.0f, -0.6961928009986877f, -0.5250730514526367f, -0.39491748809814453f, 
+  -0.28444138169288635f, -0.18477343022823334f, -0.09105003625154495f, 0.0f, 
+  0.07958029955625534f, 0.16093020141124725f, 0.24611230194568634f, 0.33791524171829224f, 
+  0.44070982933044434f, 0.5626170039176941f, 0.7229568362236023f, 1.0f}; 
+
+template <typename T, int32_t DATA_TYPE>
+FORCEINLINE T DequantizeOneBnb4(uint8_t x) {
+  if constexpr (DATA_TYPE == FP4)
+    return static_cast<T>(fp4_qaunt_map[x]);
   else
-    return -1.0f;
+    return static_cast<T>(nf4_qaunt_map[x]);
 }
 
-template <typename T, int32_t block_size>
+template <typename T, int32_t block_size, int32_t DATA_TYPE>
 FORCEINLINE void DequantizeBlockBnb4(const uint8_t* src, T* dst, T absmax_block, int32_t block_idx, int32_t numel) {
   int32_t block_len = std::min(block_size, numel - block_idx * block_size);
   int32_t src_offset = block_idx * block_size / 2;
@@ -138,9 +180,9 @@ FORCEINLINE void DequantizeBlockBnb4(const uint8_t* src, T* dst, T absmax_block,
   for (int32_t idx = 0; idx < block_len; idx += 2) {
     const uint8_t val = src[src_offset + idx / 2];
 
-    dst[dst_offset + idx] = static_cast<T>(DequantizeNF4(val >> 4)) * absmax_block;
+    dst[dst_offset + idx] = DequantizeOneBnb4<T, DATA_TYPE>(val >> 4) * absmax_block;
     if (idx + 1 < block_len)
-      dst[dst_offset + idx + 1] = static_cast<T>(DequantizeNF4(val & 0xF)) * absmax_block;
+      dst[dst_offset + idx + 1] = DequantizeOneBnb4<T, DATA_TYPE>(val & 0xF) * absmax_block;
   }
 }
 

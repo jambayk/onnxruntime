@@ -71,6 +71,7 @@ void QuantizeMatMulBnb4Blockwise(
     py::array_t<T> src,
     py::array_t<T> absmax,
     int32_t block_size,
+    int32_t quant_type,
     int32_t N,
     int32_t K) {
   OrtThreadPoolParams to;
@@ -86,6 +87,7 @@ void QuantizeMatMulBnb4Blockwise(
       static_cast<const T*>(src_buf.ptr),
       static_cast<T*>(absmax_buf.ptr),
       block_size,
+      quant_type,
       N,
       K,
       tp.get());

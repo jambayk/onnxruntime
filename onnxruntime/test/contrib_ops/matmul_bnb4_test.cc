@@ -41,6 +41,7 @@ void QuantizeDequantizeBnb4(std::vector<float>& raw_vals,  // N X K
       raw_vals.data(),
       absmax.data(),
       block_size,
+      quant_type,
       N,
       K,
       tp.get());
@@ -50,6 +51,7 @@ void QuantizeDequantizeBnb4(std::vector<float>& raw_vals,  // N X K
       quant_vals.data(),
       absmax.data(),
       block_size,
+      quant_type,
       N,
       K,
       tp.get());
@@ -114,7 +116,7 @@ void RunTest(int64_t quant_type, int64_t M, int64_t N, int64_t K, int64_t block_
 }
 
 TEST(MatMulBnb4, Float32) {
-  for (auto qt : {1}) {
+  for (auto qt : {0, 1}) {
     for (auto M : {1, 2, 100}) {
       for (auto N : {1, 2, 32, 288}) {
         for (auto K : {16, 32, 64, 128, 256, 1024, 93, 1234}) {
@@ -129,7 +131,7 @@ TEST(MatMulBnb4, Float32) {
 
 #if defined(USE_CUDA)
 TEST(MatMulBnb4, Float16) {
-  for (auto qt : {1}) {
+  for (auto qt : {0, 1}) {
     for (auto M : {1, 2, 100}) {
       for (auto N : {1, 2, 32, 288}) {
         for (auto K : {16, 32, 64, 128, 256, 1024, 93, 1234}) {
