@@ -69,7 +69,7 @@ template <typename T>
 void QuantizeMatMulBnb4Blockwise(
     py::array_t<uint8_t> dst,
     py::array_t<T> src,
-    py::array_t<float> absmax,
+    py::array_t<T> absmax,
     int32_t block_size,
     int32_t N,
     int32_t K) {
@@ -84,7 +84,7 @@ void QuantizeMatMulBnb4Blockwise(
   contrib::QuantizeBlockwiseBnb4<T>(
       static_cast<uint8_t*>(dst_buf.ptr),
       static_cast<const T*>(src_buf.ptr),
-      static_cast<float*>(absmax_buf.ptr),
+      static_cast<T*>(absmax_buf.ptr),
       block_size,
       N,
       K,

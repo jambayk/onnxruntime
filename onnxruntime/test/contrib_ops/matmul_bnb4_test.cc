@@ -94,7 +94,7 @@ void RunTest(int64_t quant_type, int64_t M, int64_t N, int64_t K, int64_t block_
   if (use_float16) {
     test.AddInput<MLFloat16>("A", {M, K}, ToFloat16(input0_vals), false);
     test.AddInput<uint8_t>("B", {quantized_numel}, input1_vals, true);
-    test.AddInput<float>("absmax", {total_block_count}, absmax, true);
+    test.AddInput<MLFloat16>("absmax", {total_block_count}, ToFloat16(absmax), true);
 
     test.AddOutput<MLFloat16>("Y", {M, N}, ToFloat16(expected_vals));
     test.SetOutputAbsErr("Y", 0.02f);

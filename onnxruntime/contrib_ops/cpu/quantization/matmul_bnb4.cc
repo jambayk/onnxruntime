@@ -100,8 +100,7 @@ ONNX_OPERATOR_KERNEL_EX(
     kCpuExecutionProvider,
     KernelDefBuilder()
         .TypeConstraint("T1", DataTypeImpl::GetTensorType<float>())
-        .TypeConstraint("T2", DataTypeImpl::GetTensorType<uint8_t>())
-        .TypeConstraint("T3", DataTypeImpl::GetTensorType<float>()),
+        .TypeConstraint("T2", DataTypeImpl::GetTensorType<uint8_t>()),
     MatMulBnb4);
 
 }  // namespace contrib

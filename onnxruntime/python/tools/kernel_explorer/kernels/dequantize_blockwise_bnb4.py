@@ -45,8 +45,7 @@ def profile_dequantize_int4_func(qt, n, k, dtype, func):
     numel = n * k
     output = np.random.rand(n, k).astype(dtype)
     quant = np.random.randint(low=0, high=255, size=(numel + 1) // 2).astype("uint8")
-    # absmax = np.random.rand((numel + block_size - 1) // block_size).astype(dtype)
-    absmax = np.random.rand((numel + block_size - 1) // block_size).astype("float32")
+    absmax = np.random.rand((numel + block_size - 1) // block_size).astype(dtype)
     quant_map_buffer = np.zeros(16).astype(dtype)
 
     output_d = ke.DeviceArray(output)
@@ -56,8 +55,7 @@ def profile_dequantize_int4_func(qt, n, k, dtype, func):
     f = getattr(ke, func)
     my_op = f(quant_enums[qt], output_d, quant_d, absmax_d, quant_map_buffer_d, n, k)
     duration_ms = my_op.Profile()
-    # total_bytes = numel / 2 + numel * dtype_to_bytes(dtype) + numel / block_size * dtype_to_bytes(dtype)
-    total_bytes = numel / 2 + numel * dtype_to_bytes(dtype) + numel / block_size * dtype_to_bytes("float32")
+    total_bytes = numel / 2 + (numel + numel / block_size) * dtype_to_bytes(dtype)
 
     ke.report(DequantizeBnb4Metric(func, dtype, duration_ms, total_bytes, qt, n, k))
 

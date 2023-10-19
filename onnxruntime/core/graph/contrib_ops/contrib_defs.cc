@@ -3253,11 +3253,10 @@ Missing Doc
       .Attr("quant_type", "Type of quantization used. 0 for FP4, 1 for NF4.", AttributeProto::INT)
       .Input(0, "A", "The input tensor, not quantized.", "T1")
       .Input(1, "B", "Quantized data for weight.", "T2")
-      .Input(2, "absmax", "Absolute max values for each block.", "T3")
+      .Input(2, "absmax", "Absolute max values for each block.", "T1")
       .Output(0, "Y", "tensor. The output tensor has the same rank as the input. ", "T1")
       .TypeConstraint("T1", {"tensor(float)", "tensor(float16)"}, "Constrain input and output types to float/half_float tensors.")
       .TypeConstraint("T2", {"tensor(uint8)"}, "Constrain quantized weight types to uint8.")
-      .TypeConstraint("T3", {"tensor(float)"}, "Constrain absmax type to float.")
       .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
         // Type inference
         propagateElemTypeFromInputToOutput(ctx, 0, 0);

@@ -28,7 +28,7 @@ struct MatrixFloatBnb4Params : cuda::tunable::OpParams {
   T* output_;
   const T* a_;
   const uint8_t* b_;
-  const float* absmax_;
+  const T* absmax_;
   T* quant_map_buffer_;
   int m_;
   int n_;
@@ -49,7 +49,7 @@ class MatrixFloatBnb4 : public IKernelExplorer {
     params_.output_ = static_cast<T*>(output.ptr());
     params_.a_ = static_cast<T*>(a.ptr());
     params_.b_ = static_cast<uint8_t*>(b.ptr());
-    params_.absmax_ = static_cast<float*>(absmax.ptr());
+    params_.absmax_ = static_cast<T*>(absmax.ptr());
     params_.quant_map_buffer_ = static_cast<T*>(quant_map_buffer.ptr());
     params_.quant_type_ = quant_type;
     params_.m_ = m;

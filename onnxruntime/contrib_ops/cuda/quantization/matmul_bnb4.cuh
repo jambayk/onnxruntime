@@ -14,7 +14,7 @@ bool TryMatMulBnb4(
     T* output,
     const T* a_data,
     const unsigned char* b_data_quant,
-    const float* absmax,
+    const T* absmax,
     int m,
     int n,
     int k,

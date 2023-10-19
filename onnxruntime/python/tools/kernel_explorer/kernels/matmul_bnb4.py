@@ -64,8 +64,7 @@ def profile_matmul_fp_bnb4_func(qt, m, n, k, dtype, func):
     output = np.random.rand(m, n).astype(dtype)
     a = np.random.rand(m, k).astype(dtype)
     b = np.random.randint(low=0, high=255, size=(numel + 1) // 2).astype("uint8")
-    # absmax = np.random.rand((numel + block_size - 1) // block_size).astype(dtype)
-    absmax = np.random.rand((numel + block_size - 1) // block_size).astype("float32")
+    absmax = np.random.rand((numel + block_size - 1) // block_size).astype(dtype)
     quant_map_buffer = np.zeros(16).astype(dtype)
 
     output_d = ke.DeviceArray(output)

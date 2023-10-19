@@ -47,7 +47,7 @@ template Status SetBnbQuantMap<half>(int quant_type, half* quant_map_buffer, cud
 
 
 template<typename T, int TILE_SIZE, int THREADS, int NUM_PER_TH>
-__global__ void kDequantizeBlockwise(const T *quant_map, T *output, const unsigned char *quant_data, const float *absmax, const int block_size, const int n)
+__global__ void kDequantizeBlockwise(const T *quant_map, T *output, const unsigned char *quant_data, const T *absmax, const int block_size, const int n)
 {
   const int n_load = (gridDim.x * TILE_SIZE);
   int valid_items_load = 0;
@@ -88,7 +88,7 @@ __global__ void kDequantizeBlockwise(const T *quant_map, T *output, const unsign
 
 
 template<class T>
-Status DequantizeBnb4(const T* quant_map, T *output, const unsigned char *quant_data, const float *absmax, int block_size, int numel, cudaStream_t stream)
+Status DequantizeBnb4(const T* quant_map, T *output, const unsigned char *quant_data, const T *absmax, int block_size, int numel, cudaStream_t stream)
 {
   int tile_size = 1024;
   kDequantizeBlockwise<T, 512, 64, 8><<<(numel+tile_size-1)/tile_size, 64, 0, stream>>>(quant_map, output, quant_data, absmax, block_size/2, numel);
@@ -98,7 +98,7 @@ Status DequantizeBnb4(const T* quant_map, T *output, const unsigned char *quant_
 
 template Status DequantizeBnb4<float>(const float* quant_map, float *output, const unsigned char *quant_data, const float *absmax, int block_size, int numel, cudaStream_t stream);
 
-template Status DequantizeBnb4<half>(const half* quant_map, half *output, const unsigned char *quant_data, const float *absmax, int block_size, int numel, cudaStream_t stream);
+template Status DequantizeBnb4<half>(const half* quant_map, half *output, const unsigned char *quant_data, const half *absmax, int block_size, int numel, cudaStream_t stream);
 
 }  // namespace cuda
 }  // namespace contrib
