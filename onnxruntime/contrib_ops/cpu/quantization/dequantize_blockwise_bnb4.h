@@ -75,7 +75,7 @@ void DequantizeBlockwiseBnb4(
       thread_pool,
       total_block_count,
       [&](ptrdiff_t block_idx) {
-        DeQuantizeBlockBnb4<T, block_size>(src, dst, scale[block_idx], block_idx, numel);
+        DequantizeBlockBnb4<T, block_size>(src, dst, scale[block_idx], block_idx, numel);
       },
       0);
 }

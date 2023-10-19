@@ -16,7 +16,8 @@ namespace contrib {
 #define FORCEINLINE __attribute__((always_inline)) inline
 #endif
 
-uint8_t QuantizeNF4(float x)
+// TODO(jambayk): Does this improve performance?
+FORCEINLINE uint8_t QuantizeNF4(float x)
 {
   if(x > 0.03979014977812767f)
     if(x > 0.3893125355243683f) // 1
@@ -67,7 +68,7 @@ uint8_t QuantizeNF4(float x)
 }
 
 template <typename T, int32_t block_size>
-void QuantizeBlockBnb4(const T* src, uint8_t* dst, float& scale_block, int32_t block_idx, int32_t numel){
+FORCEINLINE void QuantizeBlockBnb4(const T* src, uint8_t* dst, float& scale_block, int32_t block_idx, int32_t numel){
   float absmax = 0.0f;
 
   int32_t block_len = std::min(block_size, numel - block_idx * block_size);
@@ -93,7 +94,7 @@ void QuantizeBlockBnb4(const T* src, uint8_t* dst, float& scale_block, int32_t b
   }
 }
 
-float DequantizeNF4(uint8_t val)
+FORCEINLINE float DequantizeNF4(uint8_t val)
 {
   if((val & 0b1000) == 8)
     if((val & 0b0100) == 4) // 1
@@ -145,7 +146,7 @@ float DequantizeNF4(uint8_t val)
 }
 
 template <typename T, int32_t block_size>
-void DeQuantizeBlockBnb4(const uint8_t* src, T* dst, float scale_block, int32_t block_idx, int32_t numel){
+FORCEINLINE void DequantizeBlockBnb4(const uint8_t* src, T* dst, float scale_block, int32_t block_idx, int32_t numel){
   int32_t block_len = std::min(block_size, numel - block_idx * block_size);
   int32_t src_offset = block_idx * block_size / 2;
   int32_t dst_offset = block_idx * block_size;

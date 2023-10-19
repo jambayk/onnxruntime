@@ -42,7 +42,7 @@ Status MatMulBnb4<T>::ComputeInternal(OpKernelContext* ctx) const {
 
   const auto* a_data = a->Data<T>();
   const uint8_t* b_quant_data = b_quant->Data<uint8_t>();
-  const float* quant_map_data = quant_map->Data<float>();
+  const float* quant_map_data = quant_map->Data<float_t>();
   const float_t* scale_data = scale->Data<float_t>();
 
   typedef typename ToCudaType<T>::MappedType CudaT;
@@ -114,7 +114,8 @@ ONNX_OPERATOR_TYPED_KERNEL_EX(
     kCudaExecutionProvider,
     (*KernelDefBuilder::Create())
         .TypeConstraint("T1", DataTypeImpl::GetTensorType<float>())
-        .TypeConstraint("T2", DataTypeImpl::GetTensorType<uint8_t>()),
+        .TypeConstraint("T2", DataTypeImpl::GetTensorType<uint8_t>())
+        .TypeConstraint("T3", DataTypeImpl::GetTensorType<float>()),
     MatMulBnb4<float>);
 
 ONNX_OPERATOR_TYPED_KERNEL_EX(
@@ -125,7 +126,8 @@ ONNX_OPERATOR_TYPED_KERNEL_EX(
     kCudaExecutionProvider,
     (*KernelDefBuilder::Create())
         .TypeConstraint("T1", DataTypeImpl::GetTensorType<MLFloat16>())
-        .TypeConstraint("T2", DataTypeImpl::GetTensorType<uint8_t>()),
+        .TypeConstraint("T2", DataTypeImpl::GetTensorType<uint8_t>())
+        .TypeConstraint("T3", DataTypeImpl::GetTensorType<float>()),
     MatMulBnb4<MLFloat16>);
 
 }  // namespace cuda
