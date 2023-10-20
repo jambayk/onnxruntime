@@ -16,15 +16,13 @@ namespace contrib {
 #define FORCEINLINE __attribute__((always_inline)) inline
 #endif
 
-typedef enum Bnb_DataType_t
-{
+typedef enum Bnb_DataType_t {
   FP4 = 0,
   NF4 = 1,
 } Bnb_DataType_t;
 
 // TODO(jambayk): Does FORCEINLINE this improve performance?
-FORCEINLINE uint8_t QuantizeOneFP4(float x)
-{
+FORCEINLINE uint8_t QuantizeOneFP4(float x) {
   // FP4 with bias of 3
   // first bit is a sign
   // subnormals
@@ -37,7 +35,6 @@ FORCEINLINE uint8_t QuantizeOneFP4(float x)
   // 0b010 = 8
   // 0b011 = 12
 
-
   // we do a binary search
   // the pivots are divided by 12 (the FP4 absmax)
   // since we assum input data is in [-1.0, 1.0]
@@ -48,28 +45,25 @@ FORCEINLINE uint8_t QuantizeOneFP4(float x)
 
   int sign = x < 0 ? 0b1000 : 0b0000;
   x = fabsf(x);
-  if(x > 0.29166667f)
-    if( x > 0.583333f)
-      if( x > 0.8333333f)
-        return 0b0011+sign;
+  if (x > 0.29166667f)
+    if (x > 0.583333f)
+      if (x > 0.8333333f)
+        return 0b0011 + sign;
       else
-        return 0b0010+sign;
+        return 0b0010 + sign;
+    else if (x > 0.4166667f)
+      return 0b101 + sign;
     else
-      if(x > 0.4166667f)
-        return 0b101+sign;
-      else
-        return 0b100+sign;
+      return 0b100 + sign;
+  else if (x > 0.0859375f)
+    if (x > 0.20833333f)
+      return 0b0111 + sign;
+    else
+      return 0b0110 + sign;
+  else if (x > 0.00260417f)
+    return 0b0001 + sign;
   else
-    if(x > 0.0859375f)
-      if(x > 0.20833333f)
-        return 0b0111+sign;
-      else
-        return 0b0110+sign;
-    else
-      if(x > 0.00260417f)
-        return 0b0001+sign;
-      else
-        return 0b0000+sign;
+    return 0b0000 + sign;
 }
 
 FORCEINLINE uint8_t QuantizeOneNF4(float x) {
@@ -114,8 +108,8 @@ FORCEINLINE uint8_t QuantizeOneNF4(float x) {
     return 0b0000;
 }
 
-template<int32_t DATA_TYPE>
-FORCEINLINE uint8_t QuantizeOneBnb4(float x){
+template <int32_t DATA_TYPE>
+FORCEINLINE uint8_t QuantizeOneBnb4(float x) {
   if constexpr (DATA_TYPE == FP4)
     return QuantizeOneFP4(x);
   else
@@ -149,19 +143,17 @@ FORCEINLINE void QuantizeBlockBnb4(const T* src, uint8_t* dst, T& absmax_block, 
   }
 }
 
-
 static float fp4_qaunt_map[16] = {
-  0.00000000f, 5.208333333e-03f, 0.66666667f, 1.00000000f, 
-  1.00000000f, 0.50000000f, 0.16666667f, 0.25000000f,
-  -0.00000000f, -5.208333333e-03f, -0.66666667f, -1.00000000f, 
-  -1.00000000f, -0.50000000f, -0.16666667f, -0.25000000f};
-
+    0.00000000f, 5.208333333e-03f, 0.66666667f, 1.00000000f,
+    1.00000000f, 0.50000000f, 0.16666667f, 0.25000000f,
+    -0.00000000f, -5.208333333e-03f, -0.66666667f, -1.00000000f,
+    -1.00000000f, -0.50000000f, -0.16666667f, -0.25000000f};
 
 static float nf4_qaunt_map[16] = {
-  -1.0f, -0.6961928009986877f, -0.5250730514526367f, -0.39491748809814453f, 
-  -0.28444138169288635f, -0.18477343022823334f, -0.09105003625154495f, 0.0f, 
-  0.07958029955625534f, 0.16093020141124725f, 0.24611230194568634f, 0.33791524171829224f, 
-  0.44070982933044434f, 0.5626170039176941f, 0.7229568362236023f, 1.0f}; 
+    -1.0f, -0.6961928009986877f, -0.5250730514526367f, -0.39491748809814453f,
+    -0.28444138169288635f, -0.18477343022823334f, -0.09105003625154495f, 0.0f,
+    0.07958029955625534f, 0.16093020141124725f, 0.24611230194568634f, 0.33791524171829224f,
+    0.44070982933044434f, 0.5626170039176941f, 0.7229568362236023f, 1.0f};
 
 template <typename T, int32_t DATA_TYPE>
 FORCEINLINE T DequantizeOneBnb4(uint8_t x) {
