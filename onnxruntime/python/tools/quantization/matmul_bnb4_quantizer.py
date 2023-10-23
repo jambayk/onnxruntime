@@ -7,7 +7,6 @@
 import argparse
 import logging
 import os
-import re
 from typing import List, Tuple
 
 import numpy as np
@@ -36,14 +35,12 @@ class MatMulBnb4Quantizer:
     # 4b NormalFloat
     NF4 = 1
 
-    def __init__(self, model: ModelProto, quant_type: int, block_size: int, nodes_filter=None, nodes_to_exclude=None):
-        nodes_filter = nodes_filter or []
+    def __init__(self, model: ModelProto, quant_type: int, block_size: int, nodes_to_exclude=None):
         nodes_to_exclude = nodes_to_exclude or []
         assert quant_type in [MatMulBnb4Quantizer.FP4, MatMulBnb4Quantizer.NF4]
         self.model = ONNXModel(model)
         self.quant_type = quant_type
         self.block_size = block_size
-        self.nodes_filter = set(nodes_filter)
         self.nodes_to_exclude = set(nodes_to_exclude)
 
     @staticmethod
@@ -84,9 +81,6 @@ class MatMulBnb4Quantizer:
             return node  # only care about MatMul for now
 
         logger.debug(f"start to quantize {node.name} ...")
-        if self.nodes_filter and not any(map(lambda key: re.match(f".*/{key}/MatMul$", node.name), self.nodes_filter)):
-            logger.debug(f"skip to quantize {node.name} as not present in nodes_filter...")
-            return node
         if node.name in self.nodes_to_exclude:
             logger.debug(f"exclude to quantize {node.name} as specified by nodes_to_exclude...")
             return node
@@ -217,14 +211,6 @@ into a set of 4b integers with an absolute value scaling factor.
     parser.add_argument("-v", "--verbose", required=False, action="store_true")
     parser.set_defaults(verbose=False)
     parser.add_argument(
-        "--nodes_filter",
-        nargs="+",
-        type=str,
-        required=False,
-        default=[],
-        help="Specify the nodes to be quantized. If not specified, all MatMul nodes will be quantized. Names will be matched as '.*/name/MatMul$'.",
-    )
-    parser.add_argument(
         "--nodes_to_exclude",
         nargs="+",
         type=str,
@@ -249,8 +235,6 @@ if __name__ == "__main__":
         raise Exception(f"file {output_model_path} already exists")
 
     model = onnx.load(input_model_path)
-    quant = MatMulBnb4Quantizer(
-        model, args.quant_type, args.block_size, nodes_filter=args.nodes_filter, nodes_to_exclude=args.nodes_to_exclude
-    )
+    quant = MatMulBnb4Quantizer(model, args.quant_type, args.block_size, nodes_to_exclude=args.nodes_to_exclude)
     quant.process()
     quant.model.save_model_to_file(output_model_path, True)
