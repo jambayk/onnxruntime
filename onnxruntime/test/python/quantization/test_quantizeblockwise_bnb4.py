@@ -133,27 +133,6 @@ class TestQuantizeBlockwiseBnb4(unittest.TestCase):
                         quant_value, absmax = quantize_blockwise_bnb4_target(matrix_float, block_size, quant_type)
                         assert np.allclose(quant_value_ref, quant_value)
                         assert np.allclose(absmax_ref, absmax)
-                        # for c in range(quant_value_ref.shape[0]):
-                        #     for k in range(quant_value_ref.shape[1]):
-                        #         block_idx = c * quant_value_ref.shape[1] + k
-                        #         zp_idx = block_idx // 2
-                        #         assert np.allclose(
-                        #             dequantize_blockwise_bnb4(
-                        #                 quant_value_ref[c][k],
-                        #                 scales_ref[block_idx],
-                        #                 (zero_point_ref[zp_idx] >> 4)
-                        #                 if (block_idx & 1)
-                        #                 else (zero_point_ref[zp_idx] & 0x0F),
-                        #                 min(block_size, rows - k * block_size),
-                        #             ),
-                        #             dequantize_blockwise_bnb4(
-                        #                 quant_value[c][k],
-                        #                 scales[block_idx],
-                        #                 (zero_point[zp_idx] >> 4) if (block_idx & 1) else (zero_point[zp_idx] & 0x0F),
-                        #                 min(block_size, rows - k * block_size),
-                        #             ),
-                        #             atol=1.2 * abs(scales[block_idx]),
-                        #         )
 
 
 if __name__ == "__main__":
