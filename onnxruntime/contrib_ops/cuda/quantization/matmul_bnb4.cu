@@ -76,14 +76,8 @@ __global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restr
       #pragma unroll
       for(int k = 0; k < num_values_8bit/4; k++)
       {
-        // #if __CUDA_ARCH__ >= 800
         local_B[k*2] = quant_map[local_B_4bit[(i*num_values_8bit/4) + k] >> 4]*local_absmax;
         local_B[k*2 + 1] = quant_map[local_B_4bit[(i*num_values_8bit/4) + k] & 0x0F]*local_absmax;
-        // #else
-        //   // bf16 multipliation not supported
-        // local_B[k*2] = T((float)quant_map[local_B_4bit[(i*num_values_8bit/4) + k] >> 4]*(float)local_absmax);
-        // local_B[k*2 + 1] = T((float)quant_map[local_B_4bit[(i*num_values_8bit/4) + k] & 0x0F]*(float)local_absmax);
-        // #endif
       }
 
       if(inner_idx+(num_values_4bit/4) + (i*num_values_4bit/4) < K)
@@ -113,12 +107,7 @@ __global__ void kgemm_4bit_inference_naive(int M, int N, int K, const T* __restr
       #pragma unroll
       for(int k = 0; k < num_values_4bit/4; k++)
       {
-        // #if __CUDA_ARCH__ >= 800
         local_C += (float)(local_A[k]*local_B[k]);
-        // #else
-        //   // bf16 multipliation not supported
-        // local_C += ((float)local_A[k]*(float)local_B[k]);
-        // #endif
       }
     }
   }
